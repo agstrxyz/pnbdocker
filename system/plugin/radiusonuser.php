@@ -8,7 +8,7 @@ function online_users()
     global $ui;
     _admin();
     $ui->assign('_title', 'Online Users');
-    $ui->assign('_system_menu', 'radius');
+    $ui->assign('_system_menu', 'online_users');
     $admin = Admin::_info();
     $ui->assign('_admin', $admin);
     

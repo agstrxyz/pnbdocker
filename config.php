@@ -6,7 +6,6 @@
     $db_name = getenv('DB_DATABASE', true) ?: getenv('DB_DATABASE');
 
 
-
     define('APP_URL', '');
     $_app_stage = 'Live';
 

@@ -264,6 +264,6 @@ echo _gettext("Action");
 
     public function getSourceContext()
     {
-        return new Source("", "database/structure/table_header.twig", "/var/www/html/templates/database/structure/table_header.twig");
+        return new Source("", "database/structure/table_header.twig", "/var/www/html/admin/phpmyadmin/templates/database/structure/table_header.twig");
     }
 }

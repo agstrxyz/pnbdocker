@@ -15,6 +15,12 @@ if (isset($routes['1'])) {
     $do = 'login-display';
 }
 
+//get fileman session
+if(isset($_GET['fileman']) && !empty($_GET['fileman'])){
+    $_SESSION['fileman'] = $_GET['fileman'];
+}
+
+
 switch ($do) {
     case 'post':
         $username = _post('username');
