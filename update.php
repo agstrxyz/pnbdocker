@@ -9,7 +9,7 @@ session_start();
 include "config.php";
 
 if (empty($update_url)) {
-    $update_url = 'https://github.com/agstrxyz/phpnuxbill/archive/refs/heads/master.zip';
+    $update_url = 'https://github.com/agstrxyz/pnbdocker/archive/refs/heads/main.zip';
 }
 
 
@@ -35,8 +35,8 @@ if (!extension_loaded('zip')) {
 }
 
 
-$file = pathFixer('system/cache/phpnuxbill.zip');
-$folder = pathFixer('system/cache/phpnuxbill-' . basename($update_url, ".zip") . '/');
+$file = pathFixer('system/cache/pnbdocker.zip');
+$folder = pathFixer('system/cache/pnbdocker-' . basename($update_url, ".zip") . '/');
 
 if (empty($step)) {
     $step++;
