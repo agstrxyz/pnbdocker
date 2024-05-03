@@ -28,6 +28,9 @@ class Message
     public static function sendSMS($phone, $txt)
     {
         global $config;
+        if(empty($txt)){
+            return "";
+        }
         run_hook('send_sms'); #HOOK
         if (!empty($config['sms_url'])) {
             if (strlen($config['sms_url']) > 4 && substr($config['sms_url'], 0, 4) != "http") {
@@ -64,6 +67,9 @@ class Message
     public static function sendWhatsapp($phone, $txt)
     {
         global $config;
+        if(empty($txt)){
+            return "";
+        }
         run_hook('send_whatsapp'); #HOOK
         if (!empty($config['wa_url'])) {
             $waurl = str_replace('[number]', urlencode(Lang::phoneFormat($phone)), $config['wa_url']);
@@ -75,6 +81,9 @@ class Message
     public static function sendEmail($to, $subject, $body)
     {
         global $config;
+        if(empty($body)){
+            return "";
+        }
         run_hook('send_email'); #HOOK
         if (empty($config['smtp_host'])) {
             $attr = "";
@@ -106,28 +115,44 @@ class Message
             $mail->Subject = $subject;
             $mail->Body    = $body;
             $mail->send();
-            die();
         }
     }
 
     public static function sendPackageNotification($customer, $package, $price, $message, $via)
     {
-        global $u;
+        global $ds;
+        if(empty($message)){
+            return "";
+        }
         $msg = str_replace('[[name]]', $customer['fullname'], $message);
         $msg = str_replace('[[username]]', $customer['username'], $msg);
+        $msg = str_replace('[[plan]]', $package, $msg);
         $msg = str_replace('[[package]]', $package, $msg);
-        $msg = str_replace('[[price]]', $price, $msg);
-        if ($u) {
-            $msg = str_replace('[[expired_date]]', Lang::dateAndTimeFormat($u['expiration'], $u['time']), $msg);
+        $msg = str_replace('[[price]]', Lang::moneyFormat($price), $msg);
+        list($bills, $add_cost) = User::getBills($customer['id']);
+        if($add_cost>0){
+            $note = "";
+            foreach ($bills as $k => $v) {
+                $note .= $k . " : " . Lang::moneyFormat($v) . "\n";
+            }
+            $note .= "Total : " . Lang::moneyFormat($add_cost+$price) . "\n";
+            $msg = str_replace('[[bills]]', $note, $msg);
+        }else{
+            $msg = str_replace('[[bills]]', '', $msg);
+        }
+        if ($ds) {
+            $msg = str_replace('[[expired_date]]', Lang::dateAndTimeFormat($ds['expiration'], $ds['time']), $msg);
+        }else{
+            $msg = str_replace('[[expired_date]]', "", $msg);
         }
         if (
             !empty($customer['phonenumber']) && strlen($customer['phonenumber']) > 5
             && !empty($message) && in_array($via, ['sms', 'wa'])
         ) {
             if ($via == 'sms') {
-                Message::sendSMS($customer['phonenumber'], $msg);
+                echo Message::sendSMS($customer['phonenumber'], $msg);
             } else if ($via == 'wa') {
-                Message::sendWhatsapp($customer['phonenumber'], $msg);
+                echo Message::sendWhatsapp($customer['phonenumber'], $msg);
             }
         }
         return "$via: $msg";

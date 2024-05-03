@@ -15,15 +15,17 @@ class Package
      * @param int   $plan_id plan id for this package
      * @param string $gateway payment gateway name
      * @param string $channel channel payment gateway
+     * @param array $pgids payment gateway ids
      * @return boolean
      */
     public static function rechargeUser($id_customer, $router_name, $plan_id, $gateway, $channel, $note = '')
     {
-        global $config, $admin, $c, $p, $b, $t, $d, $zero;
+        global $config, $admin, $c, $p, $b, $t, $d, $zero, $trx;
         $date_now = date("Y-m-d H:i:s");
         $date_only = date("Y-m-d");
         $time_only = date("H:i:s");
         $time = date("H:i:s");
+        $inv = "";
 
         if ($id_customer == '' or $router_name == '' or $plan_id == '') {
             return false;
@@ -76,9 +78,8 @@ class Package
 
         if ($router_name == 'balance') {
             // insert table transactions
-            $inv = "INV-" . Package::_raid();
             $t = ORM::for_table('tbl_transactions')->create();
-            $t->invoice = $inv;
+            $t->invoice = $inv = "INV-" . Package::_raid();
             $t->username = $c['username'];
             $t->plan_name = $p['name_plan'];
             $t->price = $p['price'];
@@ -149,7 +150,9 @@ class Package
             ->where('customer_id', $id_customer)
             ->where('tbl_user_recharges.routers', $router_name)
             ->where('tbl_user_recharges.Type', $p['type'])
-            ->where('prepaid', $p['prepaid'])
+            # PPPOE or Hotspot only can have 1 per customer prepaid or postpaid
+            # because 1 customer can have 1 PPPOE and 1 Hotspot Plan in mikrotik
+            //->where('prepaid', $p['prepaid'])
             ->join('tbl_plans', array('tbl_plans.id', '=', 'tbl_user_recharges.plan_id'))
             ->find_one();
 
@@ -182,9 +185,12 @@ class Package
             $date_exp = $datetime[0];
             $time = $datetime[1];
         }
-
+        $isChangePlan = false;
         if ($p['type'] == 'Hotspot') {
             if ($b) {
+                if ($plan_id != $b['plan_id']) {
+                    $isChangePlan = true;
+                }
                 if ($b['namebp'] == $p['name_plan'] && $b['status'] == 'on') {
                     // if it same internet plan, expired will extend
                     if ($p['validity_unit'] == 'Months') {
@@ -207,13 +213,15 @@ class Package
                     }
                 }
 
-                if ($p['is_radius']) {
-                    Radius::customerAddPlan($c, $p, "$date_exp $time");
-                } else {
-                    $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                    Mikrotik::removeHotspotUser($client, $c['username']);
-                    Mikrotik::removeHotspotActiveUser($client, $c['username']);
-                    Mikrotik::addHotspotUser($client, $p, $c);
+                if ($isChangePlan || $b['status'] == 'off') {
+                    if ($p['is_radius']) {
+                        Radius::customerAddPlan($c, $p, "$date_exp $time");
+                    } else {
+                        $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
+                        Mikrotik::removeHotspotUser($client, $c['username']);
+                        Mikrotik::removeHotspotActiveUser($client, $c['username']);
+                        Mikrotik::addHotspotUser($client, $p, $c);
+                    }
                 }
 
                 $b->customer_id = $id_customer;
@@ -237,7 +245,7 @@ class Package
 
                 // insert table transactions
                 $t = ORM::for_table('tbl_transactions')->create();
-                $t->invoice = "INV-" . Package::_raid();
+                $t->invoice = $inv = "INV-" . Package::_raid();
                 $t->username = $c['username'];
                 $t->plan_name = $p['name_plan'];
                 if ($p['validity_unit'] == 'Period') {
@@ -321,7 +329,7 @@ class Package
 
                 // insert table transactions
                 $t = ORM::for_table('tbl_transactions')->create();
-                $t->invoice = "INV-" . Package::_raid();
+                $t->invoice = $inv = "INV-" . Package::_raid();
                 $t->username = $c['username'];
                 $t->plan_name = $p['name_plan'];
                 if ($p['validity_unit'] == 'Period') {
@@ -381,6 +389,9 @@ class Package
         } else {
 
             if ($b) {
+                if ($plan_id != $b['plan_id']) {
+                    $isChangePlan = true;
+                }
                 if ($b['namebp'] == $p['name_plan'] && $b['status'] == 'on') {
                     // if it same internet plan, expired will extend
                     if ($p['validity_unit'] == 'Months') {
@@ -403,13 +414,15 @@ class Package
                     }
                 }
 
-                if ($p['is_radius']) {
-                    Radius::customerAddPlan($c, $p, "$date_exp $time");
-                } else {
-                    $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                    Mikrotik::removePpoeUser($client, $c['username']);
-                    Mikrotik::removePpoeActive($client, $c['username']);
-                    Mikrotik::addPpoeUser($client, $p, $c);
+                if ($isChangePlan || $b['status'] == 'off') {
+                    if ($p['is_radius']) {
+                        Radius::customerAddPlan($c, $p, "$date_exp $time");
+                    } else {
+                        $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
+                        Mikrotik::removePpoeUser($client, $c['username']);
+                        Mikrotik::removePpoeActive($client, $c['username']);
+                        Mikrotik::addPpoeUser($client, $p, $c);
+                    }
                 }
 
                 $b->customer_id = $id_customer;
@@ -433,7 +446,7 @@ class Package
 
                 // insert table transactions
                 $t = ORM::for_table('tbl_transactions')->create();
-                $t->invoice = "INV-" . Package::_raid();
+                $t->invoice = $inv = "INV-" . Package::_raid();
                 $t->username = $c['username'];
                 $t->plan_name = $p['name_plan'];
                 if ($p['validity_unit'] == 'Period') {
@@ -516,7 +529,7 @@ class Package
 
                 // insert table transactions
                 $t = ORM::for_table('tbl_transactions')->create();
-                $t->invoice = "INV-" . Package::_raid();
+                $t->invoice = $inv = "INV-" . Package::_raid();
                 $t->username = $c['username'];
                 $t->plan_name = $p['name_plan'];
                 if ($p['validity_unit'] == 'Period') {
@@ -581,7 +594,10 @@ class Package
         }
         run_hook("recharge_user_finish");
         Message::sendInvoice($c, $t);
-        return true;
+        if ($trx) {
+            $trx->trx_invoice = $inv;
+        }
+        return $inv;
     }
 
     public static function changeTo($username, $plan_id, $from_id)
@@ -688,6 +704,8 @@ class Package
         } else {
             $admin['fullname'] = 'Customer';
         }
+        $cust = ORM::for_table('tbl_customers')->where('username', $in['username'])->findOne();
+
         $note = '';
         //print
         $invoice = Lang::pad($config['CompanyName'], ' ', 2) . "\n";
@@ -722,6 +740,9 @@ class Package
             $invoice .= Lang::pad($note, ' ', 2) . "\n";
         }
         $invoice .= Lang::pad("", '=') . "\n";
+        if ($cust) {
+            $invoice .= Lang::pads(Lang::T('Full Name'), $cust['fullname'], ' ') . "\n";
+        }
         $invoice .= Lang::pads(Lang::T('Username'), $in['username'], ' ') . "\n";
         $invoice .= Lang::pads(Lang::T('Password'), '**********', ' ') . "\n";
         if ($in['type'] != 'Balance') {
@@ -763,6 +784,9 @@ class Package
             $invoice .= Lang::pad($note, ' ', 2) . "\n";
         }
         $invoice .= Lang::pad("", '=') . "\n";
+        if ($cust) {
+            $invoice .= Lang::pads(Lang::T('Full Name'), $cust['fullname'], ' ') . "\n";
+        }
         $invoice .= Lang::pads(Lang::T('Username'), $in['username'], ' ') . "\n";
         $invoice .= Lang::pads(Lang::T('Password'), '**********', ' ') . "\n";
         if ($in['type'] != 'Balance') {

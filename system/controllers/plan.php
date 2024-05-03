@@ -59,30 +59,7 @@ switch ($action) {
             }
             $log .= "DONE : $plan[username], $plan[namebp], $plan[type], $plan[routers]<br>";
         }
-        if ($isApi) {
-            showResult(true, $log);
-        }
         r2(U . 'plan/list', 's', $log);
-    case 'list':
-        $ui->assign('xfooter', '<script type="text/javascript" src="ui/lib/c/plan.js"></script>');
-        $ui->assign('_title', Lang::T('Customer'));
-        $search = _post('search');
-        if ($search != '') {
-            $query = ORM::for_table('tbl_user_recharges')->where_like('username', '%' . $search . '%')->order_by_desc('id');
-            $d = Paginator::findMany($query, ['search' => $search]);
-        } else {
-            $query = ORM::for_table('tbl_user_recharges')->order_by_desc('id');
-            $d = Paginator::findMany($query);
-        }
-        run_hook('view_list_billing'); #HOOK
-        if ($isApi) {
-            showResult(true, $action, $d, ['search' => $search]);
-        }
-        $ui->assign('d', $d);
-        $ui->assign('search', $search);
-        $ui->display('plan.tpl');
-        break;
-
     case 'recharge':
         if (!in_array($admin['user_type'], ['SuperAdmin', 'Admin', 'Agent', 'Sales'])) {
             _alert(Lang::T('You do not have permission to access this page'), 'danger', "dashboard");
@@ -153,6 +130,15 @@ switch ($action) {
         $server = _post('server');
         $planId = _post('plan');
         $using = _post('using');
+        $stoken = _post('stoken');
+
+        if (!empty(App::getTokenValue($stoken))) {
+            $username = App::getTokenValue($stoken);
+            $in = ORM::for_table('tbl_transactions')->where('username', $username)->order_by_desc('id')->find_one();
+            Package::createInvoice($in);
+            $ui->display('invoice.tpl');
+            die();
+        }
 
         $msg = '';
         if ($id_customer == '' or $server == '' or $planId == '' or $using == '') {
@@ -188,8 +174,7 @@ switch ($action) {
                 }
                 $in = ORM::for_table('tbl_transactions')->where('username', $cust['username'])->order_by_desc('id')->find_one();
                 Package::createInvoice($in);
-				
-				
+                App::setToken($stoken, $cust['username']);
                 $ui->display('invoice.tpl');
                 _log('[' . $admin['username'] . ']: ' . 'Recharge ' . $cust['username'] . ' [' . $in['plan_name'] . '][' . Lang::moneyFormat($in['price']) . ']', $admin['user_type'], $admin['id']);
             } else {
@@ -255,7 +240,7 @@ switch ($action) {
             $ui->assign('_title', 'Edit Plan');
             $ui->display('plan-edit.tpl');
         } else {
-            r2(U . 'plan/list', 'e', $_L['Account_Not_Found']);
+            r2(U . 'plan/list', 'e', Lang::T('Account Not Found'));
         }
         break;
 
@@ -340,18 +325,13 @@ switch ($action) {
 
     case 'voucher':
         $ui->assign('_title', Lang::T('Vouchers'));
-        $limit = 10;
-        $page = _get('p', 0);
-        $pageNow = $page * $limit;
         $search = _req('search');
         if ($search != '') {
             if (in_array($admin['user_type'], ['SuperAdmin', 'Admin'])) {
-                $d = ORM::for_table('tbl_plans')->where('enabled', '1')
+                $query = ORM::for_table('tbl_plans')->where('enabled', '1')
                     ->join('tbl_voucher', array('tbl_plans.id', '=', 'tbl_voucher.id_plan'))
-                    ->where_like('tbl_voucher.code', '%' . $search . '%')
-                    ->offset($pageNow)
-                    ->limit($limit)
-                    ->findArray();
+                    ->where_like('tbl_voucher.code', '%' . $search . '%');
+                $d = Paginator::findMany($query, ["search" => $search]);
             } else if ($admin['user_type'] == 'Agent') {
                 $sales = [];
                 $sls = ORM::for_table('tbl_users')->select('id')->where('root', $admin['id'])->findArray();
@@ -359,21 +339,17 @@ switch ($action) {
                     $sales[] = $s['id'];
                 }
                 $sales[] = $admin['id'];
-                $d = ORM::for_table('tbl_plans')
+                $query = ORM::for_table('tbl_plans')
                     ->join('tbl_voucher', array('tbl_plans.id', '=', 'tbl_voucher.id_plan'))
                     ->where_in('generated_by', $sales)
-                    ->where_like('tbl_voucher.code', '%' . $search . '%')
-                    ->offset($pageNow)
-                    ->limit($limit)
-                    ->findArray();
+                    ->where_like('tbl_voucher.code', '%' . $search . '%');
+                $d = Paginator::findMany($query, ["search" => $search]);
             }
         } else {
             if (in_array($admin['user_type'], ['SuperAdmin', 'Admin'])) {
-                $d = ORM::for_table('tbl_plans')->where('enabled', '1')
-                    ->join('tbl_voucher', array('tbl_plans.id', '=', 'tbl_voucher.id_plan'))
-                    ->offset($pageNow)
-                    ->limit($limit)
-                    ->findArray();
+                $query = ORM::for_table('tbl_plans')->where('enabled', '1')
+                    ->join('tbl_voucher', array('tbl_plans.id', '=', 'tbl_voucher.id_plan'));
+                $d = Paginator::findMany($query);
             } else if ($admin['user_type'] == 'Agent') {
                 $sales = [];
                 $sls = ORM::for_table('tbl_users')->select('id')->where('root', $admin['id'])->findArray();
@@ -381,12 +357,10 @@ switch ($action) {
                     $sales[] = $s['id'];
                 }
                 $sales[] = $admin['id'];
-                $d = ORM::for_table('tbl_plans')
+                $query = ORM::for_table('tbl_plans')
                     ->join('tbl_voucher', array('tbl_plans.id', '=', 'tbl_voucher.id_plan'))
-                    ->where_in('generated_by', $sales)
-                    ->offset($pageNow)
-                    ->limit($limit)
-                    ->findArray();
+                    ->where_in('generated_by', $sales);
+                $d = Paginator::findMany($query);
             }
         }
         // extract admin
@@ -739,6 +713,14 @@ switch ($action) {
         }
         $user = _post('id_customer');
         $plan = _post('id_plan');
+        $stoken = _req('stoken');
+        if (App::getTokenValue($stoken)) {
+            $c = ORM::for_table('tbl_customers')->where('id', $user)->find_one();
+            $in = ORM::for_table('tbl_transactions')->where('username', $c['username'])->order_by_desc('id')->find_one();
+            Package::createInvoice($in);
+            $ui->display('invoice.tpl');
+            die();
+        }
 
         run_hook('deposit_customer'); #HOOK
         if (!empty($user) && !empty($plan)) {
@@ -746,6 +728,9 @@ switch ($action) {
                 $c = ORM::for_table('tbl_customers')->where('id', $user)->find_one();
                 $in = ORM::for_table('tbl_transactions')->where('username', $c['username'])->order_by_desc('id')->find_one();
                 Package::createInvoice($in);
+                if(!empty($stoken)){
+                    App::setToken($stoken, $in['id']);
+                }
                 $ui->display('invoice.tpl');
             } else {
                 r2(U . 'plan/refill', 'e', "Failed to refill account");
@@ -754,6 +739,63 @@ switch ($action) {
             r2(U . 'plan/refill', 'e', "All field is required");
         }
         break;
+    case 'extend':
+        $id = $routes[2];
+        $days = $routes[3];
+        $stoken = $_GET['stoken'];
+        if (App::getTokenValue($stoken)) {
+            r2(U . 'plan', 's', "Extend already done");
+        }
+        $tur = ORM::for_table('tbl_user_recharges')->find_one($id);
+        $status = $tur['status'];
+        if ($status == 'off') {
+            if (strtotime($tur['expiration'] . ' ' . $tur['time']) > time()) {
+                // not expired
+                $expiration = date('Y-m-d', strtotime($tur['expiration'] . " +$days day"));
+            } else {
+                //expired
+                $expiration = date('Y-m-d', strtotime(" +$days day"));
+            }
+            $tur->expiration = $expiration;
+            $tur->status = "on";
+            $tur->save();
+            App::setToken($stoken, $id);
+            if ($tur['routers'] != 'radius') {
+                $mikrotik = Mikrotik::info($tur['routers']);
+                $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
+                $router = $tur['routers'];
+            }
+            $p = ORM::for_table('tbl_plans')->findOne($tur['plan_id']);
+            $c = ORM::for_table('tbl_customers')->findOne($tur['customer_id']);
+            if ($tur['routers'] == 'radius') {
+                Radius::customerAddPlan($c, $p, $tur['expiration'] . ' ' . $tur['time']);
+            } else {
+                if ($tur['type'] == 'Hotspot') {
+                    Mikrotik::addHotspotUser($client, $p, $c);
+                } else if ($tur['type'] == 'PPPOE') {
+                    Mikrotik::addPpoeUser($client, $p, $c);
+                }
+            }
+            _log("$admin[fullname] extend Customer $tur[customer_id] $tur[username] for $days days", $admin['user_type'], $admin['id']);
+            r2(U . 'plan', 's', "Extend until $expiration");
+        }else{
+            r2(U . 'plan', 's', "Customer is not expired yet");
+        }
+        break;
     default:
-        $ui->display('a404.tpl');
+        $ui->assign('xfooter', '<script type="text/javascript" src="ui/lib/c/plan.js"></script>');
+        $ui->assign('_title', Lang::T('Customer'));
+        $search = _post('search');
+        if ($search != '') {
+            $query = ORM::for_table('tbl_user_recharges')->where_like('username', '%' . $search . '%')->order_by_desc('id');
+            $d = Paginator::findMany($query, ['search' => $search]);
+        } else {
+            $query = ORM::for_table('tbl_user_recharges')->order_by_desc('id');
+            $d = Paginator::findMany($query);
+        }
+        run_hook('view_list_billing'); #HOOK
+        $ui->assign('d', $d);
+        $ui->assign('search', $search);
+        $ui->display('plan.tpl');
+        break;
 }
