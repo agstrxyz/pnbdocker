@@ -6,7 +6,7 @@
  **/
 
 if(Admin::getID()){
-    r2(U.'dashboard', "s", Lang::T("You are already logged in"));
+    r2(U.'dashboard');
 }
 
 if (isset($routes['1'])) {
@@ -14,6 +14,12 @@ if (isset($routes['1'])) {
 } else {
     $do = 'login-display';
 }
+
+//get fileman session
+if(isset($_GET['fileman']) && !empty($_GET['fileman'])){
+    $_SESSION['fileman'] = $_GET['fileman'];
+}
+
 
 switch ($do) {
     case 'post':
@@ -26,27 +32,20 @@ switch ($do) {
                 $d_pass = $d['password'];
                 if (Password::_verify($password, $d_pass) == true) {
                     $_SESSION['aid'] = $d['id'];
-                    $token = Admin::setCookie($d['id']);
+                    Admin::setCookie($d['id']);
                     $d->last_login = date('Y-m-d H:i:s');
                     $d->save();
                     _log($username . ' ' . Lang::T('Login Successful'), $d['user_type'], $d['id']);
-                    if ($isApi) {
-                        if ($token) {
-                            showResult(true, Lang::T('Login Successful'), ['token' => "a.".$token]);
-                        } else {
-                            showResult(false, Lang::T('Invalid Username or Password'));
-                        }
-                    }
                     _alert(Lang::T('Login Successful'),'success', "dashboard");
                 } else {
                     _log($username . ' ' . Lang::T('Failed Login'), $d['user_type']);
-                    _alert(Lang::T('Invalid Username or Password').".",'danger', "admin");
+                    _alert(Lang::T('Invalid Username or Password'),'danger', "admin");
                 }
             } else {
-                _alert(Lang::T('Invalid Username or Password')."..",'danger', "admin");
+                _alert(Lang::T('Invalid Username or Password'),'danger', "admin");
             }
         } else {
-            _alert(Lang::T('Invalid Username or Password')."...",'danger', "admin");
+            _alert(Lang::T('Invalid Username or Password'),'danger', "admin");
         }
 
         break;
