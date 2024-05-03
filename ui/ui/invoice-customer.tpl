@@ -8,7 +8,7 @@
                 <form class="form-horizontal" method="post" action="{$_url}plan/print" target="_blank">
                     <pre id="content">{$invoice}</pre>
                     <input type="hidden" name="id" value="{$in['id']}">
-                    <a href="{$_url}home" class="btn btn-default btn-sm"><i
+                    <a href="{$_url}voucher/list-activated" class="btn btn-default btn-sm"><i
                             class="ion-reply-all"></i>{Lang::T('Finish')}</a>
                     <a href="https://api.whatsapp.com/send/?text={$whatsapp}" target="_blank"
                     class="btn btn-primary btn-sm">

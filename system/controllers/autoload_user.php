@@ -17,14 +17,7 @@ switch ($action) {
     case 'isLogin':
         $bill = ORM::for_table('tbl_user_recharges')->where('id', $routes['2'])->where('username', $user['username'])->findOne();
         if ($bill['type'] == 'Hotspot' && $bill['status'] == 'on') {
-             //check router
-        if (!empty($_SESSION['nux-router'])) {
-            $rtid = $_SESSION['nux-router'];
-            $m = ORM::for_table('tbl_routers')->where('id', $rtid)->findOne();
-                } else
-                {
-                $m = Mikrotik::info($bill['routers']);
-             }
+            $m = Mikrotik::info($bill['routers']);
             $client = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
             if (Mikrotik::isUserLogin($client, $user['username'])) {
                 die('<a href="' . U . 'home&mikrotik=logout&id='.$bill['id'].'" onclick="return confirm(\''.Lang::T('Disconnect Internet?').'\')" class="btn btn-success btn-xs btn-block">'.Lang::T('You are Online, Logout?').'</a>');

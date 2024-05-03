@@ -45,29 +45,27 @@
                     <div class="panel-body">
                         <form action="{$_url}login/post" method="post">
                             <div class="form-group">
-                                <label>{Lang::T('Username')}</label>
+                                <label>{if $_c['country_code_phone']!= ''}{Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}</label>
                                 <div class="input-group">
                                     {if $_c['country_code_phone']!= ''}
-                                        <span class="input-group-addon" id="basic-addon1">+</span>
+                                        <span class="input-group-addon" id="basic-addon1"><i
+                                        class="glyphicon glyphicon-phone-alt"></i></span>
                                     {else}
                                         <span class="input-group-addon" id="basic-addon1"><i
                                                 class="glyphicon glyphicon-user"></i></span>
                                     {/if}
                                     <input type="text" class="form-control" name="username"
-                                        placeholder="{Lang::T('Username')}">
+                                placeholder="{if $_c['country_code_phone']!= ''}{$_c['country_code_phone']} {Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}">
                                 </div>
 
                             </div>
                             <div class="form-group">
-							<label>{Lang::T('Password')}</label> 
-							<div class="input-group">
-                                <span class="input-group-addon" id="basic-addon1"><i
-                                                class="glyphicon glyphicon-lock"></i></span>
-                                <input type="password" class="form-control" name="password"
-                                    placeholder="{Lang::T('Password')}">
-									
-							</div>
-                            </div>
+    <label>{Lang::T('Password')}</label>
+    <div class="input-group">
+        <span class="input-group-addon" id="basic-addon2"><i class="glyphicon glyphicon-lock"></i></span>
+        <input type="password" class="form-control" name="password" placeholder="{Lang::T('Password')}">
+    </div>
+</div>
 
                             <div class="clearfix hidden">
                                 <div class="ui-checkbox ui-checkbox-primary right">

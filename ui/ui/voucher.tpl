@@ -29,15 +29,18 @@
                             </div>
                         </form>
                     </div>
+
                     <div class="col-md-4">
                         <div class="btn-group btn-group-justified" role="group">
                             <div class="btn-group" role="group">
                                 <a href="{$_url}plan/add-voucher" class="btn btn-primary btn-block"><i
-                                        class="ion ion-android-add"> </i> {Lang::T('Add Vouchers')}</a>
+                                        class="ion ion-android-add"></i> {Lang::T('Add Vouchers')}</a>
                             </div>
+                        </div>
+                        <div class="btn-group btn-group-justified" role="group">
                             <div class="btn-group" role="group">
-                                <a href="{$_url}plan/print-voucher" target="print_voucher" class="btn btn-info"><i
-                                        class="ion ion-android-print"> </i> Print</a>
+                                <a href="{$_url}plan/print-voucher" target="print_voucher"
+                                    class="btn btn-info btn-block"><i class="ion ion-android-print"></i> Print</a>
                             </div>
                         </div>
                     </div>&nbsp;
@@ -82,8 +85,7 @@
                                     </td>
                                     <td>
                                         {if $ds['status'] neq '1'}
-                                            <a href="{$_url}plan/voucher-view/{$ds['id']}" id="{$ds['id']}"
-                                                style="margin: 0px;"
+                                            <a href="{$_url}plan/voucher-view/{$ds['id']}" id="{$ds['id']}" style="margin: 0px;"
                                                 class="btn btn-success btn-xs">&nbsp;&nbsp;{Lang::T('View')}&nbsp;&nbsp;</a>
                                         {/if}
                                         {if in_array($_admin['user_type'],['SuperAdmin','Admin'])}
@@ -98,15 +100,7 @@
                         </tbody>
                     </table>
                 </div>
-
-                <ul class="pagination pagination-sm">
-                    {if $page>0}
-                        <li><a href="{$_url}plan/voucher&p={$page-1}&code={$_code}">{Lang::T('Prev')}</a></li>
-                    {/if}
-                    {if $d}
-                        <li><a href="{$_url}plan/voucher&p={$page+1}&code={$_code}">{Lang::T('Next')}</a></li>
-                    {/if}
-                </ul>
+                {include file="pagination.tpl"}
             </div>
         </div>
     </div>

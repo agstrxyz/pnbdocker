@@ -1,31 +1,3 @@
-
-
-
-
-
-
-{if isset($hostname0) && $_bill['status'] == 'on'}
-
-<meta http-equiv="refresh" target="_blank" content="0; url=http://{$hostname}/login?username={$_user['username']}&dst={$apkurl}&password={$_user['password']}">
-
-
-	<form name="auth" action="http://{$nux_ip}/login" method="post">
-		<input type="hidden" name="username" value="{$_user['username']}"/>
-		<input type="hidden" name="password" value="{$_user['password']}"/>
-		<input type="hidden" name="dst" value="{$appurl}" />
-	</form>
-	
-<script type="text/javascript">
-                document.forms["auth0"].submit();
-    </script>
-	
-{/if}
-
-
-
-
-
-
         </section>
         </div>
         {if isset($_c['CompanyFooter'])}

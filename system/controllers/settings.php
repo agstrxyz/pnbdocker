@@ -119,7 +119,7 @@ switch ($action) {
                     die();
                 }
             }
-            // save all settings
+            // Save all settings including tax system
             foreach ($_POST as $key => $value) {
                 $d = ORM::for_table('tbl_appconfig')->where('setting', $key)->find_one();
                 if ($d) {
@@ -131,6 +131,33 @@ switch ($action) {
                     $d->value = $value;
                     $d->save();
                 }
+            }
+
+            // Handle tax system separately
+            $enable_tax = isset($_POST['enable_tax']) ? $_POST['enable_tax'] : 'no';
+            $tax_rate = isset($_POST['tax_rate']) ? $_POST['tax_rate'] : '0.01'; // Default tax rate 1%
+
+            // Save or update tax system settings
+            $d_tax_enable = ORM::for_table('tbl_appconfig')->where('setting', 'enable_tax')->find_one();
+            if ($d_tax_enable) {
+                $d_tax_enable->value = $enable_tax;
+                $d_tax_enable->save();
+            } else {
+                $d_tax_enable = ORM::for_table('tbl_appconfig')->create();
+                $d_tax_enable->setting = 'enable_tax';
+                $d_tax_enable->value = $enable_tax;
+                $d_tax_enable->save();
+            }
+
+            $d_tax_rate = ORM::for_table('tbl_appconfig')->where('setting', 'tax_rate')->find_one();
+            if ($d_tax_rate) {
+                $d_tax_rate->value = $tax_rate;
+                $d_tax_rate->save();
+            } else {
+                $d_tax_rate = ORM::for_table('tbl_appconfig')->create();
+                $d_tax_rate->setting = 'tax_rate';
+                $d_tax_rate->value = $tax_rate;
+                $d_tax_rate->save();
             }
 
             //checkbox
@@ -336,12 +363,6 @@ switch ($action) {
                 $admins[$adm['id']] = $adm['fullname'];
             }
         }
-        if ($isApi) {
-            showResult(true, $action, [
-                'admins' => $d,
-                'roots' => $admins
-            ], ['search' => $search]);
-        }
         $ui->assign('admins', $admins);
         $ui->assign('d', $d);
         $ui->assign('search', $search);
@@ -380,20 +401,11 @@ switch ($action) {
             if ($d['user_type'] == 'Sales') {
                 $ui->assign('agent', ORM::for_table('tbl_users')->where('id', $d['root'])->find_array()[0]);
             }
-            if ($isApi) {
-                unset($d['password']);
-                $agent = $ui->get('agent');
-                if ($agent) unset($agent['password']);
-                showResult(true, $action, [
-                    'admin' => $d,
-                    'agent' => $agent
-                ], ['search' => $search]);
-            }
             $ui->assign('d', $d);
             $ui->assign('_title', $d['username']);
             $ui->display('users-view.tpl');
         } else {
-            r2(U . 'settings/users', 'e', $_L['Account_Not_Found']);
+            r2(U . 'settings/users', 'e', Lang::T('Account Not Found'));
         }
         break;
     case 'users-edit':
@@ -430,7 +442,7 @@ switch ($action) {
             run_hook('view_edit_admin'); #HOOK
             $ui->display('users-edit.tpl');
         } else {
-            r2(U . 'settings/users', 'e', $_L['Account_Not_Found']);
+            r2(U . 'settings/users', 'e', Lang::T('Account Not Found'));
         }
         break;
 
@@ -449,7 +461,7 @@ switch ($action) {
             $d->delete();
             r2(U . 'settings/users', 's', Lang::T('User deleted Successfully'));
         } else {
-            r2(U . 'settings/users', 'e', $_L['Account_Not_Found']);
+            r2(U . 'settings/users', 'e', Lang::T('Account Not Found'));
         }
         break;
 

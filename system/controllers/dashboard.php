@@ -9,12 +9,6 @@ _admin();
 $ui->assign('_title', Lang::T('Dashboard'));
 $ui->assign('_admin', $admin);
 
-//fileman redirect
-if ($_SESSION['fileman'] == 'true') {
-    unset($_SESSION['fileman']);
-    header('location: ../admin/fileman');
-  }
-
 $fdate = date('Y-m-01');
 $tdate = date('Y-m-t');
 //first day of month
@@ -194,6 +188,6 @@ $ui->assign('xfooter', '');
 $ui->assign('monthlyRegistered', $monthlyRegistered);
 $ui->assign('stocks', $stocks);
 $ui->assign('plans', $plans);
-$ui->assign('apkurl', $_SERVER['HTTP_HOST']);
+
 run_hook('view_dashboard'); #HOOK
 $ui->display('dashboard.tpl');

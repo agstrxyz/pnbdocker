@@ -43,11 +43,10 @@ switch ($action) {
         $ui->assign('_title', 'Order Plan');
         $ui->assign('_system_menu', 'package');
         $account_type = $user['account_type'];
-        if(empty($account_type)){
+        if (empty($account_type)) {
             $account_type = 'Personal';
         }
-        ////tobefix
-        if (!empty($_SESSION['nux-routero'])) {
+        if (!empty($_SESSION['nux-router'])) {
             if ($_SESSION['nux-router'] == 'radius') {
                 $radius_pppoe = ORM::for_table('tbl_plans')->where('plan_type', $account_type)->where('enabled', '1')->where('is_radius', 1)->where('type', 'PPPOE')->where('prepaid', 'yes')->find_many();
                 $radius_hotspot = ORM::for_table('tbl_plans')->where('plan_type', $account_type)->where('enabled', '1')->where('is_radius', 1)->where('type', 'Hotspot')->where('prepaid', 'yes')->find_many();
@@ -84,7 +83,7 @@ switch ($action) {
         run_hook('custome
         r_find_unpaid'); #HOOK
         if ($d) {
-            if (empty ($d['pg_url_payment'])) {
+            if (empty($d['pg_url_payment'])) {
                 r2(U . "order/buy/" . $trx['routers_id'] . '/' . $trx['plan_id'], 'w', Lang::T("Checking payment"));
             } else {
                 r2(U . "order/view/" . $d['id'] . '/check/', 's', Lang::T("You have unpaid transaction"));
@@ -100,11 +99,11 @@ switch ($action) {
             ->find_one($trxid);
         run_hook('customer_view_payment'); #HOOK
         // jika tidak ditemukan, berarti punya orang lain
-        if (empty ($trx)) {
+        if (empty($trx)) {
             r2(U . "order/package", 'w', Lang::T("Payment not found"));
         }
         // jika url kosong, balikin ke buy, kecuali cancel
-        if (empty ($trx['pg_url_payment']) && $routes['3'] != 'cancel') {
+        if (empty($trx['pg_url_payment']) && $routes['3'] != 'cancel') {
             r2(U . "order/buy/" . (($trx['routers_id'] == 0) ? $trx['routers'] : $trx['routers_id']) . '/' . $trx['plan_id'], 'w', Lang::T("Checking payment"));
         }
         if ($routes['3'] == 'check') {
@@ -125,15 +124,15 @@ switch ($action) {
                 ->where('username', $user['username'])
                 ->find_one($trxid);
         }
-        if (empty ($trx)) {
+        if (empty($trx)) {
             r2(U . "order/package", 'e', Lang::T("Transaction Not found"));
         }
+
         $router = Mikrotik::info($trx['routers']);
         $plan = ORM::for_table('tbl_plans')->find_one($trx['plan_id']);
         $bandw = ORM::for_table('tbl_bandwidth')->find_one($plan['id_bw']);
-        list($bills, $add_cost) = User::getBills($id_customer);
-        $ui->assign('bills', $bills);
-        $ui->assign('add_cost', $add_cost);
+        $invoice = ORM::for_table('tbl_transactions')->where("invoice",$trx['trx_invoice'])->find_one();
+        $ui->assign('invoice', $invoice);
         $ui->assign('trx', $trx);
         $ui->assign('router', $router);
         $ui->assign('plan', $plan);
@@ -145,8 +144,12 @@ switch ($action) {
         if ($config['enable_balance'] != 'yes') {
             r2(U . "order/package", 'e', Lang::T("Balance not enabled"));
         }
+        if (!empty(App::getTokenValue($_GET['stoken']))) {
+            r2(U . "voucher/invoice/");
+            die();
+        }
         $plan = ORM::for_table('tbl_plans')->where('enabled', '1')->find_one($routes['3']);
-        if (empty ($plan)) {
+        if (empty($plan)) {
             r2(U . "order/package", 'e', Lang::T("Plan Not found"));
         }
         if (!$plan['enabled']) {
@@ -162,6 +165,7 @@ switch ($action) {
             if (Package::rechargeUser($user['id'], $router_name, $plan['id'], 'Customer', 'Balance')) {
                 // if success, then get the balance
                 Balance::min($user['id'], $plan['price'] + $add_cost);
+                App::setToken($_GET['stoken'], "success");
                 r2(U . "voucher/invoice/", 's', Lang::T("Success to buy package"));
             } else {
                 r2(U . "order/package", 'e', Lang::T("Failed to buy package"));
@@ -180,7 +184,7 @@ switch ($action) {
         $ui->assign('_title', Lang::T('Buy for friend'));
         $ui->assign('_system_menu', 'package');
         $plan = ORM::for_table('tbl_plans')->find_one($routes['3']);
-        if (empty ($plan)) {
+        if (empty($plan)) {
             r2(U . "order/package", 'e', Lang::T("Plan Not found"));
         }
         if (!$plan['enabled']) {
@@ -191,10 +195,10 @@ switch ($action) {
         } else {
             $router_name = $plan['routers'];
         }
-        if (isset ($_POST['send']) && $_POST['send'] == 'plan') {
+        if (isset($_POST['send']) && $_POST['send'] == 'plan') {
             $target = ORM::for_table('tbl_customers')->where('username', _post('username'))->find_one();
             list($bills, $add_cost) = User::getBills($target['id']);
-            if (!empty ($add_cost)) {
+            if (!empty($add_cost)) {
                 $ui->assign('bills', $bills);
                 $ui->assign('add_cost', $add_cost);
                 $plan['price'] += $add_cost;
@@ -216,7 +220,8 @@ switch ($action) {
             if ($active && $active['plan_id'] != $plan['id']) {
                 r2(U . "order/package", 'e', Lang::T("Target has active plan, different with current plant.") . " [ <b>$active[namebp]</b> ]");
             }
-            if (Package::rechargeUser($target['id'], $router_name, $plan['id'], $user['fullname'], 'Balance')) {
+            $result = Package::rechargeUser($target['id'], $router_name, $plan['id'], $user['username'], 'Balance');
+            if (!empty($result)) {
                 // if success, then get the balance
                 Balance::min($user['id'], $plan['price']);
                 //sender
@@ -234,6 +239,7 @@ switch ($action) {
                 $d->paid_date = date('Y-m-d H:i:s');
                 $d->expired_date = date('Y-m-d H:i:s');
                 $d->pg_url_payment = 'balance';
+                $d->trx_invoice = $result;
                 $d->status = 2;
                 $d->save();
                 $trx_id = $d->id();
@@ -252,6 +258,7 @@ switch ($action) {
                 $d->paid_date = date('Y-m-d H:i:s');
                 $d->expired_date = date('Y-m-d H:i:s');
                 $d->pg_url_payment = 'balance';
+                $d->trx_invoice = $result;
                 $d->status = 2;
                 $d->save();
                 r2(U . "order/view/$trx_id", 's', Lang::T("Success to send package"));
@@ -289,7 +296,7 @@ switch ($action) {
             $ui->display('user-selectGateway.tpl');
             break;
         } else {
-            if (empty ($pgs[0])) {
+            if (empty($pgs[0])) {
                 sendTelegram("Payment Gateway not set, please set it in Settings");
                 _log(Lang::T("Payment Gateway not set, please set it in Settings"));
                 r2(U . "home", 'e', Lang::T("Failed to create Transaction.."));
@@ -299,12 +306,12 @@ switch ($action) {
         }
     case 'buy':
         $gateway = _post('gateway');
-        if (empty ($gateway) && !empty ($_SESSION['gateway'])) {
+        if (empty($gateway) && !empty($_SESSION['gateway'])) {
             $gateway = $_SESSION['gateway'];
-        } else if (!empty ($gateway)) {
+        } else if (!empty($gateway)) {
             $_SESSION['gateway'] = $gateway;
         }
-        if (empty ($gateway)) {
+        if (empty($gateway)) {
             r2(U . 'order/gateway/' . $routes[2] . '/' . $routes[3], 'w', Lang::T("Please select Payment Gateway"));
         }
         run_hook('customer_buy_plan'); #HOOK
@@ -321,7 +328,7 @@ switch ($action) {
             $router['name'] = 'balance';
         }
         $plan = ORM::for_table('tbl_plans')->where('enabled', '1')->find_one($routes['3']);
-        if (empty ($router) || empty ($plan)) {
+        if (empty($router) || empty($plan)) {
             r2(U . "order/package", 'e', Lang::T("Plan Not found"));
         }
         $d = ORM::for_table('tbl_payment_gateway')
@@ -344,7 +351,7 @@ switch ($action) {
         if ($router['name'] != 'balance') {
             list($bills, $add_cost) = User::getBills($id_customer);
         }
-        if (empty ($id)) {
+        if (empty($id)) {
             $d = ORM::for_table('tbl_payment_gateway')->create();
             $d->username = $user['username'];
             $d->gateway = $gateway;
@@ -355,7 +362,7 @@ switch ($action) {
             if ($plan['validity_unit'] == 'Period') {
                 // Postpaid price from field
                 $add_inv = User::getAttribute("Invoice", $id_customer);
-                if (empty ($add_inv) or $add_inv == 0) {
+                if (empty($add_inv) or $add_inv == 0) {
                     $d->price = ($plan['price'] + $add_cost);
                 } else {
                     $d->price = ($add_inv + $add_cost);
@@ -378,7 +385,7 @@ switch ($action) {
             if ($plan['validity_unit'] == 'Period') {
                 // Postpaid price from field
                 $add_inv = User::getAttribute("Invoice", $id_customer);
-                if (empty ($add_inv) or $add_inv == 0) {
+                if (empty($add_inv) or $add_inv == 0) {
                     $d->price = ($plan['price'] + $add_cost);
                 } else {
                     $d->price = ($add_inv + $add_cost);

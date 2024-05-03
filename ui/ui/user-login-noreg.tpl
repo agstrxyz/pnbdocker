@@ -44,16 +44,17 @@
                     <div class="panel-body">
                         <form action="{$_url}login/activation" method="post">
                             <div class="form-group">
-                                <label>{Lang::T('Phone Number')}</label>
+                                <label>{if $_c['country_code_phone']!= ''}{Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}</label>
                                 <div class="input-group">
                                     {if $_c['country_code_phone']!= ''}
-                                        <span class="input-group-addon" id="basic-addon1">+</span>
-                                    {else}
                                         <span class="input-group-addon" id="basic-addon1"><i
                                                 class="glyphicon glyphicon-phone-alt"></i></span>
+                                    {else}
+                                        <span class="input-group-addon" id="basic-addon1"><i
+                                                class="glyphicon glyphicon-user"></i></span>
                                     {/if}
                                     <input type="text" class="form-control" name="username" required
-                                        placeholder="08xxxxxxx">
+                                        placeholder="{if $_c['country_code_phone']!= ''}{$_c['country_code_phone']} {Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}">
                                 </div>
                             </div>
                             <div class="form-group">

@@ -152,6 +152,7 @@
                             <td class="small text-success text-uppercase text-normal">{Lang::T('Type')}</td>
                             <td class="small mb15 text-success">
                                 <b>{if $_bill['prepaid'] eq yes}Prepaid{else}Postpaid{/if}</b>
+                                {Lang::T($_bill['plan_type'])}
                             </td>
                         </tr>
                         {if $nux_ip neq ''}
@@ -166,7 +167,7 @@
                                 <td class="small mb15">{$nux_mac}</td>
                             </tr>
                         {/if}
-                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $nux_router neq ''}
+                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $_bill['routers'] != 'radius'}
                             <tr>
                                 <td class="small text-primary text-uppercase text-normal">{Lang::T('Login Status')}</td>
                                 <td class="small mb15" id="login_status_{$_bill['id']}">
@@ -177,12 +178,19 @@
                         <tr>
                             <td class="small text-primary text-uppercase text-normal">
                                 {if $_bill['status'] == 'on'}
-                                    <a href="{$_url}home&deactivate={$_bill['id']}" onclick="return confirm('{Lang::T('Deactivate')}?')"
-                                        class="btn btn-danger btn-xs"><i class="glyphicon glyphicon-trash"></i></a>
+                                    <a href="{$_url}home&deactivate={$_bill['id']}"
+                                        onclick="return confirm('{Lang::T('Deactivate')}?')" class="btn btn-danger btn-xs"><i
+                                            class="glyphicon glyphicon-trash"></i></a>
                                 {/if}
                             </td>
                             <td class="small row">
-                                <a class="btn btn-primary pull-right  btn-sm" href="{$_url}home&recharge={$_bill['id']}"
+                                {if $_bill['status'] != 'on' && $_bill['prepaid'] != 'yes' && $_c['extend_expired']}
+                                    <a class="btn btn-warning text-black btn-sm"
+                                        href="{$_url}home&extend={$_bill['id']}&stoken={App::getToken()}"
+                                        onclick="return confirm('{Text::toHex($_c['extend_confirmation'])}')">{Lang::T('Extend')}</a>
+                                {/if}
+                                <a class="btn btn-primary pull-right  btn-sm"
+                                    href="{$_url}home&recharge={$_bill['id']}&stoken={App::getToken()}"
                                     onclick="return confirm('{Lang::T('Recharge')}?')">{Lang::T('Recharge')}</a>
                             </td>
                         </tr>
@@ -310,7 +318,4 @@
         {/if}
     </div>
 </div>
-
-
-
 {include file="sections/user-footer.tpl"}

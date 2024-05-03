@@ -204,21 +204,21 @@
                     {if in_array($_admin['user_type'],['SuperAdmin','Admin'])}
                         <li class="{if $_system_menu eq 'services'}active{/if} treeview">
                             <a href="#">
-                                <i class="ion ion-cube"></i> <span>{Lang::T('Plans')}</span>
+                                <i class="ion ion-cube"></i> <span>{Lang::T('Internet Plan')}</span>
                                 <span class="pull-right-container">
                                     <i class="fa fa-angle-left pull-right"></i>
                                 </span>
                             </a>
                             <ul class="treeview-menu">
                                 <li {if $_routes[1] eq 'hotspot' }class="active" {/if}><a
-                                        href="{$_url}services/hotspot">{Lang::T('Hotspot')}</a></li>
+                                        href="{$_url}services/hotspot">Hotspot</a></li>
                                 <li {if $_routes[1] eq 'pppoe' }class="active" {/if}><a
-                                        href="{$_url}services/pppoe">{Lang::T('PPPOE')}</a></li>
+                                        href="{$_url}services/pppoe">PPPOE</a></li>
                                 <li {if $_routes[1] eq 'list' }class="active" {/if}><a
                                         href="{$_url}bandwidth/list">{Lang::T('Bandwidth')}</a></li>
                                 {if $_c['enable_balance'] == 'yes'}
                                     <li {if $_routes[1] eq 'balance' }class="active" {/if}><a
-                                            href="{$_url}services/balance">{Lang::T('Balance')}</a></li>
+                                            href="{$_url}services/balance">{Lang::T('Customer Balance')}</a></li>
                                 {/if}
                                 {$_MENU_PLANS}
                             </ul>
@@ -312,9 +312,9 @@
                                 <li {if $_routes[1] eq 'Registration_Info' }class="active" {/if}><a
                                         href="{$_url}pages/Registration_Info">{Lang::T('Registration Info')}</a></li>
                                 <li {if $_routes[1] eq 'Privacy_Policy' }class="active" {/if}><a
-                                        href="{$_url}pages/Privacy_Policy">Privacy Policy</a></li>
+                                        href="{$_url}pages/Privacy_Policy">{Lang::T('Privacy Policy')}</a></li>
                                 <li {if $_routes[1] eq 'Terms_and_Conditions' }class="active" {/if}><a
-                                        href="{$_url}pages/Terms_and_Conditions">Terms and Conditions</a></li>
+                                        href="{$_url}pages/Terms_and_Conditions">{Lang::T('Terms and Conditions')}</a></li>
                                 {$_MENU_PAGES}
                             </ul>
                         </li>

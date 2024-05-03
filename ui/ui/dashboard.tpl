@@ -62,7 +62,7 @@
 </div>
 <div class="row">
     <div class="col-md-7">
-    
+
         <!-- solid sales graph -->
         {if $_c['hide_mrc'] != 'yes'}
             <div class="box box-solid ">
