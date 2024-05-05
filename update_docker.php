@@ -196,7 +196,7 @@ function deleteFolder($path)
     <link rel="stylesheet" href="ui/ui/styles/modern-AdminLTE.min.css">
 
     <?php if ($continue) { ?>
-        <meta http-equiv="refresh" content="3; ./update.php?step=<?= $step ?>">
+        <meta http-equiv="refresh" content="3; ./update_docker.php?step=<?= $step ?>">
     <?php } ?>
     <style>
         ::-moz-selection {
