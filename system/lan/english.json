@@ -577,5 +577,8 @@
     "Extend_Days": "Extend Days",
     "Confirmation_Message": "Confirmation Message",
     "You_are_already_logged_in": "You are already logged in",
-    "Extend": "Extend"
+    "Extend": "Extend",
+    "Number": "Number",
+    "NAS": "NAS",
+    "MAC_Address": "MAC Address"
 }

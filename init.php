@@ -11,7 +11,9 @@ if (realpath(__FILE__) == realpath($_SERVER['SCRIPT_FILENAME'])) {
     die();
 }
 $root_path = realpath(dirname(__FILE__)) . DIRECTORY_SEPARATOR;
-$isApi = false;
+if(!isset($isApi)){
+    $isApi = false;
+}
 // on some server, it getting error because of slash is backwards
 function _autoloader($class)
 {
@@ -71,8 +73,11 @@ ORM::configure('return_result_sets', true);
 if ($_app_stage != 'Live') {
     ORM::configure('logging', true);
 }
-
-define('U', APP_URL . '/index.php?_route=');
+if($isApi){
+    define('U', APP_URL . '/system/api.php?r=');
+}else{
+    define('U', APP_URL . '/index.php?_route=');
+}
 
 // notification message
 if (file_exists($UPLOAD_PATH . DIRECTORY_SEPARATOR . "notifications.json")) {
@@ -195,7 +200,18 @@ function _log($description, $type = '', $userid = '0')
     $d->type = $type;
     $d->description = $description;
     $d->userid = $userid;
-    $d->ip = $_SERVER["REMOTE_ADDR"];
+    if (!empty($_SERVER['HTTP_CF_CONNECTING_IP']))   //to check ip is pass from cloudflare tunnel
+    {
+        $d->ip = $_SERVER['HTTP_CF_CONNECTING_IP'];
+    } elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR']))   //to check ip is pass from proxy
+    {
+        $d->ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    } elseif (!empty($_SERVER['HTTP_CLIENT_IP']))   //to check ip from share internet
+    {
+        $d->ip = $_SERVER['HTTP_CLIENT_IP'];
+    } else {
+        $d->ip = $_SERVER["REMOTE_ADDR"];
+    }
     $d->save();
 }
 
@@ -206,9 +222,16 @@ function Lang($key)
 
 function alphanumeric($str, $tambahan = "")
 {
-    return preg_replace("/[^a-zA-Z0-9" . $tambahan . "]+/", "", $str);
+    return Text::alphanumeric($str, $tambahan);
 }
 
+function showResult($success, $message = '', $result = [], $meta = [])
+{
+    header("Content-Type: Application/json");
+    $json = json_encode(['success' => $success, 'message' => $message, 'result' => $result, 'meta' => $meta]);
+    echo $json;
+    die();
+}
 
 function sendTelegram($txt)
 {
@@ -227,6 +250,13 @@ function sendWhatsapp($phone, $txt)
 
 function r2($to, $ntype = 'e', $msg = '')
 {
+    global $isApi;
+    if ($isApi) {
+        showResult(
+            ($ntype=='s')? true : false,
+            $msg
+        );
+    }
     if ($msg == '') {
         header("location: $to");
         exit;
@@ -239,7 +269,13 @@ function r2($to, $ntype = 'e', $msg = '')
 
 function _alert($text, $type = 'success', $url = "home", $time = 3)
 {
-    global $ui;
+    global $ui, $isApi;
+    if ($isApi) {
+        showResult(
+            ($type == 'success') ? true : false,
+            $text
+        );
+    }
     if (!isset($ui)) return;
     if (strlen($url) > 4) {
         if (substr($url, 0, 4) != "http") {

@@ -47,6 +47,7 @@
   
 <button class="tablink" onclick=" window.open('/admin/phpmyadmin/','_blank', 'orange')">phpMyAdmin</button>
 <button class="tablink" onclick=" window.open('/admin/fileman/','_blank', 'green')">Filemanager</button>
+<a href="/update_docker.php" onclick="return confirm('Update/Repair Confirm')"><button  class="tablink">Update/Repair</button></a>
 <button class="tablink" onclick="openPage('rst', this, 'red')">Restart</button>
 
 

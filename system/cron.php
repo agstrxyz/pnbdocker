@@ -34,7 +34,6 @@ foreach ($d as $ds) {
             $c = ORM::for_table('tbl_customers')->where('id', $ds['customer_id'])->find_one();
             $m = Mikrotik::info($ds['routers']);
             $p = ORM::for_table('tbl_plans')->where('id', $u['plan_id'])->find_one();
-            $price = Lang::moneyFormat($p['price']);
             if ($p['is_radius']) {
                 if (empty($p['pool_expired'])) {
                     print_r(Radius::customerDeactivate($c['username']));
@@ -54,13 +53,13 @@ foreach ($d as $ds) {
                 }
                 Mikrotik::removeHotspotActiveUser($client, $c['username']);
             }
-            echo Message::sendPackageNotification($c, $u['namebp'], $price, $textExpired, $config['user_notification_expired']) . "\n";
+            echo Message::sendPackageNotification($c, $u['namebp'], $p['price'], $textExpired, $config['user_notification_expired']) . "\n";
             //update database user dengan status off
             $u->status = 'off';
             $u->save();
 
             // autorenewal from deposit
-            if ($config['enable_balance'] == 'yes' && $c['auto_renewal'] == '1') {
+            if ($config['enable_balance'] == 'yes' && $c['auto_renewal']) {
                 list($bills, $add_cost) = User::getBills($ds['customer_id']);
                 if ($add_cost > 0) {
                     if (!empty($add_cost)) {
@@ -77,7 +76,7 @@ foreach ($d as $ds) {
                         echo "plan enabled: $p[enabled] | User balance: $c[balance] | price $p[price]\n";
                         echo "auto renewall Failed\n";
                         Message::sendTelegram("FAILED RENEWAL #cron\n\n#u$c[username] #buy #Hotspot \n" . $p['name_plan'] .
-                            "\nRouter: " . $p['routers'] .
+                            "\nRouter: " . $ds['routers'] .
                             "\nPrice: " . $p['price']);
                     }
                 } else {
@@ -98,16 +97,13 @@ foreach ($d as $ds) {
             $c = ORM::for_table('tbl_customers')->where('id', $ds['customer_id'])->find_one();
             $m = ORM::for_table('tbl_routers')->where('name', $ds['routers'])->find_one();
             $p = ORM::for_table('tbl_plans')->where('id', $u['plan_id'])->find_one();
-            $price = Lang::moneyFormat($p['price']);
             if ($p['is_radius']) {
                 if (empty($p['pool_expired'])) {
                     print_r(Radius::customerDeactivate($c['username']));
                 } else {
                     Radius::upsertCustomerAttr($c['username'], 'Framed-Pool', $p['pool_expired'], ':=');
-					#plus days after expired
-					Radius::upsertCustomer($c['username'], 'expiration', date('d M Y H:i:s', strtotime('+30 days', time())));
                     print_r(Radius::disconnectCustomer($c['username']));
-                }  
+                }
             } else {
                 $client = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
                 if (!empty($p['pool_expired'])) {
@@ -117,13 +113,13 @@ foreach ($d as $ds) {
                 }
                 Mikrotik::removePpoeActive($client, $c['username']);
             }
-            echo Message::sendPackageNotification($c, $u['namebp'], $price, $textExpired, $config['user_notification_expired']) . "\n";
+            echo Message::sendPackageNotification($c, $u['namebp'], $p['price'], $textExpired, $config['user_notification_expired']) . "\n";
 
             $u->status = 'off';
             $u->save();
 
             // autorenewal from deposit
-            if ($config['enable_balance'] == 'yes' && $c['auto_renewal'] == '1') {
+            if ($config['enable_balance'] == 'yes' && $c['auto_renewal']) {
                 list($bills, $add_cost) = User::getBills($ds['customer_id']);
                 if ($add_cost > 0) {
                     if (!empty($add_cost)) {
@@ -140,7 +136,7 @@ foreach ($d as $ds) {
                         echo "plan enabled: $p[enabled] | User balance: $c[balance] | price $p[price]\n";
                         echo "auto renewall Failed\n";
                         Message::sendTelegram("FAILED RENEWAL #cron\n\n#u$c[username] #buy #PPPOE \n" . $p['name_plan'] .
-                            "\nRouter: " . $p['routers'] .
+                            "\nRouter: " . $ds['routers'] .
                             "\nPrice: " . $p['price']);
                     }
                 }

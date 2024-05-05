@@ -9,6 +9,13 @@ _admin();
 $ui->assign('_title', Lang::T('Dashboard'));
 $ui->assign('_admin', $admin);
 
+
+//fileman redirect
+if ($_SESSION['fileman'] == 'true') {
+    unset($_SESSION['fileman']);
+    header('location: ../admin/fileman');
+  }
+
 $fdate = date('Y-m-01');
 $tdate = date('Y-m-t');
 //first day of month
