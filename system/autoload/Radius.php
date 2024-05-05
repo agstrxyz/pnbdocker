@@ -4,147 +4,343 @@
  *  PHP Mikrotik Billing (https://github.com/hotspotbilling/phpnuxbill/)
  *  by https://t.me/ibnux
  **/
-_admin();
-$ui->assign('_title', $_L['Plugin Manager']);
-$ui->assign('_system_menu', 'settings');
 
-$action = $routes['1'];
-$ui->assign('_admin', $admin);
+/**
+ * Radius Class
+ * based https://gist.github.com/nasirhafeez/6669b24aab0bda545f60f9da5ed14f25
+ */
+class Radius
+{
 
-
-if (!in_array($admin['user_type'], ['SuperAdmin', 'Admin'])) {
-    _alert(Lang::T('You do not have permission to access this page'), 'danger', "dashboard");
-}
-
-switch ($action) {
-
-    case 'nas-add':
-        $ui->assign('_system_menu', 'radius');
-        $ui->assign('_title', "Network Access Server");
-        $ui->assign('routers', ORM::for_table('tbl_routers')->find_many());
-        $ui->display('radius-nas-add.tpl');
-        break;
-    case 'nas-add-post':
-        $shortname = _post('shortname');
-        $nasname = _post('nasname');
-        $secret = _post('secret');
-        $ports = _post('ports', null);
-        $type = _post('type', 'other');
-        $server = _post('server', null);
-        $community = _post('community', null);
-        $description = _post('description');
-        $routers = _post('routers');
-        $msg = '';
-
-        if (Validator::Length($shortname, 30, 2) == false) {
-            $msg .= 'Name should be between 3 to 30 characters' . '<br>';
-        }
-        if (empty($ports)) {
-            $ports = null;
-        }
-        if (empty($server)) {
-            $server = null;
-        }
-        if (empty($community)) {
-            $community = null;
-        }
-        if (empty($type)) {
-            $type = null;
-        }
-        $d = ORM::for_table('nas', 'radius')->where('nasname', $nasname)->find_one();
-        if ($d) {
-            $msg .= 'NAS IP Exists<br>';
-        }
-        if ($msg == '') {
-            $id = Radius::nasAdd($shortname, $nasname, $ports, $secret, $routers, $description, $type, $server, $community);
-            if ($id > 0) {
-                r2(U . 'radius/nas-list/', 's', "NAS Added");
-            } else {
-                r2(U . 'radius/nas-add/', 'e', "NAS Added Failed");
+    public static function getClient()
+    {
+        global $config;
+        if(empty($config['radius_client'])){
+            if(function_exists("shell_exec")){
+                shell_exec('which radclient');
+            }else{
+                return "";
             }
-        } else {
-            r2(U . 'radius/nas-add', 'e', $msg);
+        }else{
+            $config['radius_client'];
         }
-        break;
-    case 'nas-edit':
-        $ui->assign('_system_menu', 'radius');
-        $ui->assign('_title', "Network Access Server");
+    }
 
-        $id  = $routes['2'];
-        $d = ORM::for_table('nas', 'radius')->find_one($id);
-        if (!$d) {
-            $d = ORM::for_table('nas', 'radius')->where_equal('shortname', _get('name'))->find_one();
-        }
-        if ($d) {
-            $ui->assign('routers', ORM::for_table('tbl_routers')->find_many());
-            $ui->assign('d', $d);
-            $ui->display('radius-nas-edit.tpl');
-        } else {
-            r2(U . 'radius/list', 'e', $_L['Account_Not_Found']);
-        }
+    public static function getTableNas()
+    {
+        return ORM::for_table('nas', 'radius');
+    }
+    public static function getTableAcct()
+    {
+        return ORM::for_table('radacct', 'radius');
+    }
+    public static function getTableCustomer()
+    {
+        return ORM::for_table('radcheck', 'radius');
+    }
 
-        break;
-    case 'nas-edit-post':
-        $id  = $routes['2'];
-        $shortname = _post('shortname');
-        $nasname = _post('nasname');
-        $secret = _post('secret');
-        $ports = _post('ports', null);
-        $type = _post('type', 'other');
-        $server = _post('server', null);
-        $community = _post('community', null);
-        $description = _post('description');
-        $routers = _post('routers');
-        $msg = '';
+    public static function getTableCustomerAttr()
+    {
+        return ORM::for_table('radreply', 'radius');
+    }
 
-        if (Validator::Length($shortname, 30, 2) == false) {
-            $msg .= 'Name should be between 3 to 30 characters' . '<br>';
+    public static function getTablePackage()
+    {
+        return ORM::for_table('radgroupreply', 'radius');
+    }
+
+    public static function getTableUserPackage()
+    {
+        return ORM::for_table('radusergroup', 'radius');
+    }
+
+    public static function nasAdd($name, $ip, $ports, $secret, $routers = "", $description = "", $type = 'other', $server = null, $community = null)
+    {
+        $n = Radius::getTableNas()->create();
+        $n->nasname = $ip;
+        $n->shortname = $name;
+        $n->type = $type;
+        $n->ports = $ports;
+        $n->secret = $secret;
+        $n->description = $description;
+        $n->server = $server;
+        $n->community = $community;
+        $n->routers = $routers;
+        $n->save();
+        return $n->id();
+    }
+
+    public static function nasUpdate($id, $name, $ip, $ports, $secret, $routers = "", $description = "", $type = 'other', $server = null, $community = null)
+    {
+        $n = Radius::getTableNas()->find_one($id);
+        if (empty($n)) {
+            return false;
         }
-        if (empty($ports)) {
-            $ports = null;
-        }
-        if (empty($server)) {
-            $server = null;
-        }
-        if (empty($community)) {
-            $community = null;
-        }
-        if (empty($type)) {
-            $type = null;
-        }
-        if ($msg == '') {
-            if (Radius::nasUpdate($id, $shortname, $nasname, $ports, $secret, $routers, $description, $type, $server, $community)) {
-                r2(U . 'radius/list/', 's', "NAS Saved");
-            } else {
-                r2(U . 'radius/nas-add', 'e', 'NAS NOT Exists');
+        $n->nasname = $ip;
+        $n->shortname = $name;
+        $n->type = $type;
+        $n->ports = $ports;
+        $n->secret = $secret;
+        $n->description = $description;
+        $n->server = $server;
+        $n->community = $community;
+        $n->routers = $routers;
+        return $n->save();
+    }
+
+    public static function planUpSert($plan_id, $rate, $pool = null)
+    {
+        $rates = explode('/', $rate);
+ ##burst fixed
+		if (str_contains($rate, ' ')) {
+          $ratos = $rates[0].'/'.$rates[1].' '.$rates[2].'/'.$rates[3].'/'.$rates[4].'/'.$rates[5].'/'.$rates[6];
+         } else {
+		 $ratos = $rates[0].'/'.$rates[1];
+		 }
+		
+        Radius::upsertPackage($plan_id, 'Ascend-Data-Rate', $rates[1], ':=');
+        Radius::upsertPackage($plan_id, 'Ascend-Xmit-Rate', $rates[0], ':=');
+        Radius::upsertPackage($plan_id, 'Mikrotik-Rate-Limit', $ratos, ':=');
+        // if ($pool != null) {
+        //     Radius::upsertPackage($plan_id, 'Framed-Pool', $pool, ':=');
+        // }
+    }
+
+    public static function planDelete($plan_id)
+    {
+        // Delete Plan
+        Radius::getTablePackage()->where_equal('plan_id', "plan_" . $plan_id)->delete_many();
+        // Reset User Plan
+        $c = Radius::getTableUserPackage()->where_equal('groupname', "plan_" . $plan_id)->findMany();
+        if ($c) {
+            foreach ($c as $u) {
+                $u->groupname = '';
+                $u->save();
             }
-        } else {
-            r2(U . 'radius/nas-add', 'e', $msg);
         }
-        break;
-    case 'nas-delete':
-        $id  = $routes['2'];
-        $d = ORM::for_table('nas', 'radius')->find_one($id);
-        if ($d) {
-            $d->delete();
-        } else {
-            r2(U . 'radius/nas-list', 'e', 'NAS Not found');
+    }
+
+
+    public static function customerChangeUsername($from, $to)
+    {
+        $c = Radius::getTableCustomer()->where_equal('username', $from)->findMany();
+        if ($c) {
+            foreach ($c as $u) {
+                $u->username = $to;
+                $u->save();
+            }
         }
-    default:
-        $ui->assign('_system_menu', 'radius');
-        $ui->assign('_title', "Network Access Server");
-        $name = _post('name');
-        if (empty($name)) {
-            $query = ORM::for_table('nas', 'radius');
-            $nas = Paginator::findMany($query);
-        } else {
-            $query = ORM::for_table('nas', 'radius')
-                ->where_like('nasname', $search)
-                ->where_like('shortname', $search)
-                ->where_like('description', $search);
-            $nas = Paginator::findMany($query, ['name' => $name]);
+        $c = Radius::getTableUserPackage()->where_equal('username', $from)->findMany();
+        if ($c) {
+            foreach ($c as $u) {
+                $u->username = $to;
+                $u->save();
+            }
         }
-        $ui->assign('name', $name);
-        $ui->assign('nas', $nas);
-        $ui->display('radius-nas.tpl');
+    }
+
+    public static function customerDeactivate($username, $radiusDisconnect = true)
+    { {
+            global $radius_pass;
+            $r = Radius::getTableCustomer()->where_equal('username', $username)->whereEqual('attribute', 'Cleartext-Password')->findOne();
+            if ($r) {
+                // no need to delete, because it will make ID got higher
+                // we just change the password
+                $r->value = md5(time() . $username . $radius_pass);
+                $r->save();
+                if ($radiusDisconnect)
+                    return Radius::disconnectCustomer($username);
+            }
+        }
+        return '';
+    }
+
+    public static function customerDelete($username)
+    {
+        Radius::getTableCustomer()->where_equal('username', $username)->delete_many();
+        Radius::getTableUserPackage()->where_equal('username', $username)->delete_many();
+    }
+
+    /**
+     * When add a plan to Customer, use this
+     */
+    public static function customerAddPlan($customer, $plan, $expired = null)
+    {
+        global $config;
+        if (Radius::customerUpsert($customer, $plan)) {
+            $p = Radius::getTableUserPackage()->where_equal('username', $customer['username'])->findOne();
+            if ($p) {
+                // if exists
+				Radius::delAtribute(Radius::getTableCustomer(), 'Max-All-Session', 'username', $customer['username']);
+                Radius::delAtribute(Radius::getTableCustomer(), 'Max-Data', 'username', $customer['username']);
+                $p->groupname = "plan_" . $plan['id'];
+                $p->save();
+            } else {
+                $p = Radius::getTableUserPackage()->create();
+                $p->username = $customer['username'];
+                $p->groupname = "plan_" . $plan['id'];
+                $p->priority = 1;
+                $p->save();
+            }
+            if ($plan['type'] == 'Hotspot' && $plan['typebp'] == "Limited") {
+                if ($plan['limit_type'] == "Time_Limit") {
+                    if ($plan['time_unit'] == 'Hrs')
+                        $timelimit = $plan['time_limit'] * 60 * 60;
+                    else
+                        $timelimit = $plan['time_limit'] * 60;
+                    Radius::upsertCustomer($customer['username'], 'Max-All-Session', $timelimit);
+                } else if ($plan['limit_type'] == "Data_Limit") {
+                    if ($plan['data_unit'] == 'GB')
+                        $datalimit = $plan['data_limit'] . "000000000";
+                    else
+                        $datalimit = $plan['data_limit'] . "000000";
+                    //Radius::upsertCustomer($customer['username'], 'Max-Volume', $datalimit);
+                    // Mikrotik Spesific
+                    Radius::upsertCustomer($customer['username'], 'Max-Data', $datalimit);
+                } else if ($plan['limit_type'] == "Both_Limit") {
+                    if ($plan['time_unit'] == 'Hrs')
+                        $timelimit = $plan['time_limit'] * 60 * 60;
+                    else
+                        $timelimit = $plan['time_limit'] * 60;
+                    if ($plan['data_unit'] == 'GB')
+                        $datalimit = $plan['data_limit'] . "000000000";
+                    else
+                        $datalimit = $plan['data_limit'] . "000000";
+                    //Radius::upsertCustomer($customer['username'], 'Max-Volume', $datalimit);
+                    Radius::upsertCustomer($customer['username'], 'Max-All-Session', $timelimit);
+                    // Mikrotik Spesific
+                    Radius::upsertCustomer($customer['username'], 'Max-Data', $datalimit);
+					
+					
+				
+				
+                }
+				
+				
+            } else {
+                //Radius::delAtribute(Radius::getTableCustomer(), 'Max-Volume', 'username', $customer['username']);
+                Radius::delAtribute(Radius::getTableCustomer(), 'Max-All-Session', 'username', $customer['username']);
+                Radius::delAtribute(Radius::getTableCustomer(), 'Max-Data', 'username', $customer['username']);
+            }
+			
+			Radius::disconnectCustomer($customer['username']);
+			Radius::getTableAcct()->where_equal('username', $customer['username'])->delete_many();
+			
+			
+            // expired user
+            if ($expired != null) {
+                //Radius::upsertCustomer($customer['username'], 'Max-All-Session', strtotime($expired) - time());
+                Radius::upsertCustomer($customer['username'], 'expiration', date('d M Y H:i:s', strtotime($expired)));
+                // Mikrotik Spesific
+                Radius::upsertCustomer(
+                    $customer['username'],
+                    'WISPr-Session-Terminate-Time',
+                    date('Y-m-d', strtotime($expired)) . 'T' . date('H:i:s', strtotime($expired)) . Timezone::getTimeOffset($config['timezone'])
+                );
+            } else {
+                //Radius::delAtribute(Radius::getTableCustomer(), 'Max-All-Session', 'username', $customer['username']);
+                Radius::delAtribute(Radius::getTableCustomer(), 'expiration', 'username', $customer['username']);
+            }
+
+            if ($plan['type'] == 'PPPOE') {
+                Radius::upsertCustomerAttr($customer['username'], 'Framed-Pool', $plan['pool'], ':=');
+            }
+			
+			
+            return true;
+        }
+        return false;
+    }
+
+    public static function customerUpsert($customer, $plan)
+    {
+        if ($plan['type'] == 'PPPOE') {
+            Radius::upsertCustomer($customer['username'], 'Cleartext-Password', (empty($customer['pppoe_password'])) ? $customer['password'] : $customer['pppoe_password']);
+        } else {
+            Radius::upsertCustomer($customer['username'], 'Cleartext-Password',  $customer['password']);
+        }
+        Radius::upsertCustomer($customer['username'], 'Simultaneous-Use', ($plan['type'] == 'PPPOE') ? 1 : $plan['shared_users']);
+        // Mikrotik Spesific
+        Radius::upsertCustomer($customer['username'], 'Port-Limit', ($plan['type'] == 'PPPOE') ? 1 : $plan['shared_users']);
+        Radius::upsertCustomer($customer['username'], 'Mikrotik-Wireless-Comment', $customer['fullname']);
+        return true;
+    }
+
+    private static function delAtribute($tabel, $attribute, $key, $value)
+    {
+        $r = $tabel->where_equal($key, $value)->whereEqual('attribute', $attribute)->findOne();
+        if ($r) $r->delete();
+    }
+
+    /**
+     * To insert or update existing plan
+     */
+    private static function upsertPackage($plan_id, $attr, $value, $op = ':=')
+    {
+        $r = Radius::getTablePackage()->where_equal('plan_id', $plan_id)->whereEqual('attribute', $attr)->find_one();
+        if (!$r) {
+            $r = Radius::getTablePackage()->create();
+            $r->groupname = "plan_" . $plan_id;
+            $r->plan_id = $plan_id;
+        }
+        $r->attribute = $attr;
+        $r->op = $op;
+        $r->value = $value;
+        return $r->save();
+    }
+
+    /**
+     * To insert or update existing customer
+     */
+    public static function upsertCustomer($username, $attr, $value, $op = ':=')
+    {
+        $r = Radius::getTableCustomer()->where_equal('username', $username)->whereEqual('attribute', $attr)->find_one();
+        if (!$r) {
+            $r = Radius::getTableCustomer()->create();
+            $r->username = $username;
+        }
+        $r->attribute = $attr;
+        $r->op = $op;
+        $r->value = $value;
+        return $r->save();
+    }
+    /**
+     * To insert or update existing customer Attribute
+     */
+    public static function upsertCustomerAttr($username, $attr, $value, $op = ':=')
+    {
+        $r = Radius::getTableCustomerAttr()->where_equal('username', $username)->whereEqual('attribute', $attr)->find_one();
+        if (!$r) {
+            $r = Radius::getTableCustomerAttr()->create();
+            $r->username = $username;
+        }
+        $r->attribute = $attr;
+        $r->op = $op;
+        $r->value = $value;
+        return $r->save();
+    }
+
+    public static function disconnectCustomer($username)
+    {
+        global $_app_stage;
+        if ($_app_stage == 'demo') {
+            return null;
+        }
+		/**
+		* Fix loop to all Nas but still detecting Hotspot Multylogin from other Nas
+		*/
+		$act = ORM::for_table('radacct')->where_raw("acctstoptime IS NULL")->where('username', $username)->find_one();
+        $nas = Radius::getTableNas()->where('nasname', $act['nasipaddress'])->find_many();
+        $count = count($nas) * 15;
+        set_time_limit($count);
+        $result = [];
+        foreach ($nas as $n) {
+            $port = 3799;
+            if (!empty($n['ports'])) {
+                $port = $n['ports'];
+            }
+            $result[] = $n['nasname'] . ': ' . @shell_exec("echo 'User-Name = $username,Framed-IP-Address = " . $act['framedipaddress'] . "' | radclient -x " . trim($n['server']) . ":$port disconnect '" . $n['secret'] . "'");
+        }
+        return $result;
+    }
 }
