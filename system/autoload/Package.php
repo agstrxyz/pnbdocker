@@ -193,6 +193,9 @@ class Package
                 }
                 if ($b['namebp'] == $p['name_plan'] && $b['status'] == 'on') {
                     // if it same internet plan, expired will extend
+                    if ($p['is_radius']) {
+                        Radius::customerAddPlan($c, $p, "$date_exp $time");
+                    }
                     if ($p['validity_unit'] == 'Months') {
                         $date_exp = date("Y-m-d", strtotime($b['expiration'] . ' +' . $p['validity'] . ' months'));
                         $time = $b['time'];
@@ -394,6 +397,9 @@ class Package
                 }
                 if ($b['namebp'] == $p['name_plan'] && $b['status'] == 'on') {
                     // if it same internet plan, expired will extend
+                    if ($p['is_radius']) {
+                        Radius::customerAddPlan($c, $p, "$date_exp $time");
+                    }
                     if ($p['validity_unit'] == 'Months') {
                         $date_exp = date("Y-m-d", strtotime($b['expiration'] . ' +' . $p['validity'] . ' months'));
                         $time = $b['time'];
