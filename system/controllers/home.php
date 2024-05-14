@@ -218,14 +218,21 @@ if (isset($_GET['recharge']) && !empty($_GET['recharge'])) {
 if (!empty($_SESSION['nux-mac']) && !empty($_SESSION['nux-ip'])) {
     $ui->assign('nux_mac', $_SESSION['nux-mac']);
     $ui->assign('nux_ip', $_SESSION['nux-ip']);
+    $ui->assign('nux_router', $_SESSION['nux-router']);
+    //check router
+ if (!empty($_SESSION['nux-router'])) { $rtid = $_SESSION['nux-router'];
+    $m = ORM::for_table('tbl_routers')->where('id', $rtid)->findOne();
+    } else {
+         $m = Mikrotik::info($bill['routers']);
+            }
+
     $bill = ORM::for_table('tbl_user_recharges')->where('id', $_GET['id'])->where('username', $user['username'])->findOne();
     if ($_GET['mikrotik'] == 'login') {
-        $m = Mikrotik::info($bill['routers']);
+        
         $c = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
         Mikrotik::logMeIn($c, $user['username'], $user['password'], $_SESSION['nux-ip'], $_SESSION['nux-mac']);
         r2(U . 'home', 's', Lang::T('Login Request successfully'));
     } else if ($_GET['mikrotik'] == 'logout') {
-        $m = Mikrotik::info($bill['routers']);
         $c = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
         Mikrotik::logMeOut($c, $user['username']);
         r2(U . 'home', 's', Lang::T('Logout Request successfully'));
