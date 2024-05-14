@@ -167,7 +167,7 @@
                                 <td class="small mb15">{$nux_mac}</td>
                             </tr>
                         {/if}
-                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $_bill['routers'] != 'radius'}
+                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $nux_router neq ''}
                             <tr>
                                 <td class="small text-primary text-uppercase text-normal">{Lang::T('Login Status')}</td>
                                 <td class="small mb15" id="login_status_{$_bill['id']}">
@@ -225,6 +225,7 @@
                 {/if}
             {/foreach}
         {/if}
+        {$nux_router}
         {if $_c['enable_balance'] == 'yes' && $_c['allow_balance_transfer'] == 'yes'}
             <div class="box box-primary box-solid mb30">
                 <div class="box-header">
