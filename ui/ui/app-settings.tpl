@@ -87,6 +87,25 @@
                                 info</a></p>
                     </div>
                     <div class="form-group">
+                        <label class="col-md-2 control-label">{Lang::T('Recharge Using')}</label>
+                        <div class="col-md-6">
+                            <input type="text" name="payment_usings" class="form-control"
+                                value="{$_c['payment_usings']}"
+                                placeholder="{Lang::T('Cash')}, {Lang::T('Bank Transfer')}">
+                        </div>
+                        <p class="help-block col-md-4">This used for admin to select payment in recharge, using comma
+                            for every new options</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">{Lang::T('Income reset date')}</label>
+                        <div class="col-md-6">
+                            <input type="number" required class="form-control" id="reset_day" placeholder="20" min="1"
+                                max="28" step="1" name="reset_day" value="{$_c['reset_day']}">
+                        </div>
+                        <span class="help-block col-md-4">Income will reset every this day</span>
+                    </div>
+                    <div class="form-group">
                         <label class="col-md-2 control-label">APP URL</label>
                         <div class="col-md-6">
                             <input type="text" readonly class="form-control" value="{$app_url}">
@@ -152,6 +171,10 @@
                                 <option value="rand" {if $_c['voucher_format']=='rand' }selected="selected" {/if}>
                                     RaNdoM
                                 </option>
+                                <option value="numbers" {if $_c['voucher_format'] == 'numbers'}selected="selected"
+                                    {/if}>
+                                    Numbers
+                                </option>
                             </select>
                         </div>
                         <p class="help-block col-md-4">UPPERCASE lowercase RaNdoM</p>
@@ -177,7 +200,7 @@
                             <label class="col-md-2 control-label">Redirect after Activation</label>
                             <div class="col-md-6">
                                 <input type="text" class="form-control" id="voucher_redirect" name="voucher_redirect"
-                                    placeholder="https://192.168.88.1/status" value="{$voucher_redirect}">
+                                    placeholder="https://192.168.88.1/status" value="{$_c['voucher_redirect']}">
                             </div>
                             <p class="help-block col-md-4">
                                 {Lang::T('After Customer activate voucher or login, customer will be redirected to this
@@ -206,12 +229,6 @@
                                 href="https://github.com/hotspotbilling/phpnuxbill/wiki/FreeRadius"
                                 target="_blank">Radius Instructions</a></p>
                     </div>
-                    <div class="form-group">
-                        <label class="col-md-2 control-label">Radius Client</label>
-                        <div class="col-md-6">
-                            <input type="text" class="form-control" name="radius_client" value="{$_c['radius_client']}">
-                        </div>
-                    </div>
                 </div>
                 <div class="panel-heading">
                     <div class="btn-group pull-right">
@@ -234,13 +251,15 @@
                     <div class="form-group">
                         <label class="col-md-2 control-label">{Lang::T('Extend Days')}</label>
                         <div class="col-md-6">
-                            <input type="text" class="form-control" name="extend_days" placeholder="3" value="{$_c['extend_days']}">
+                            <input type="text" class="form-control" name="extend_days" placeholder="3"
+                                value="{$_c['extend_days']}">
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="col-md-2 control-label">{Lang::T('Confirmation Message')}</label>
                         <div class="col-md-6">
-                            <textarea type="text" rows="4" class="form-control" name="extend_confirmation" placeholder="i agree to extends and will paid full after this">{$_c['extend_confirmation']}</textarea>
+                            <textarea type="text" rows="4" class="form-control" name="extend_confirmation"
+                                placeholder="i agree to extends and will paid full after this">{$_c['extend_confirmation']}</textarea>
                         </div>
                     </div>
                 </div>
@@ -589,9 +608,38 @@
                         </div>
                         <p class="help-block col-md-4">{Lang::T('The method which OTP will be sent to user')}</p>
                     </div>
+                    <div class="form-group">
+                        <label class="col-md-2 control-label">{Lang::T('Extend Package Expiry')}</label>
+                        <div class="col-md-6">
+                            <select name="extend_expiry" id="extend_expiry" class="form-control">
+                                <option value="yes" {if $_c['extend_expiry']!='no' }selected="selected" {/if}>
+                                    {Lang::T('Yes')}</option>
+                                <option value="no" {if $_c['extend_expiry']=='no' }selected="selected" {/if}>
+                                    {Lang::T('No')}</option>
+                            </select>
+                        </div>
+                        <p class="help-block col-md-4">
+                            {Lang::T('If user buy same internet plan, expiry date will extend')}</p>
+                    </div>
+                    <div class="form-group">
+                            <label class="col-md-2 control-label">{Lang::T('Hotspot Auth Method')}</label>
+                            <div class="col-md-6">
+                                <select name="hs_auth_method" id="auth_method" class="form-control">
+                                    <option value="api" {if $_c['hs_auth_method']=='api' }selected="selected" {/if}>
+                                    {Lang::T('Api')}
+                                    </option>
+                                    <option value="hchap" {if $_c['hs_auth_method']=='hchap' }selected="selected" {/if}>
+                                        {Lang::T('Http-Chap')}
+                                    </option>
+                                </select>
+                            </div>
+                            <p class="help-block col-md-4">
+                                {Lang::T('Hotspot Authentication Method. Make sure you have changed your hotspot login page.')}<br><a href="https://github.com/agstrxyz/phpnuxbill-login-hotspot" target="_blank">Download phpnuxbill-login-hotspot</a>
+                            </p>
+                        </div>
                 </div>
 
-                {* <div class="panel-heading">
+                <div class="panel-heading">
                     <div class="btn-group pull-right">
                         <button class="btn btn-primary btn-xs" title="save" type="submit">
                             <span class="glyphicon glyphicon-floppy-disk" aria-hidden="true"></span>
@@ -618,23 +666,23 @@
                         <label class="col-md-2 control-label">{Lang::T('Tax Rate')}</label>
                         <div class="col-md-6">
                             <select name="tax_rate" id="tax_rate" class="form-control">
-                                <option value="0.005" {if $_c['tax_rate']=='0.005' }selected="selected" {/if}>
-                                    {Lang::T('0.5%')}
+                                <option value="0.5" {if $_c['tax_rate']=='0.5' }selected="selected" {/if}>
+                                    0.5%
                                 </option>
-                                <option value="0.01" {if $_c['tax_rate']=='0.01' }selected="selected" {/if}>
-                                    {Lang::T('1%')}
+                                <option value="1" {if $_c['tax_rate']=='1' }selected="selected" {/if}>
+                                    1%
                                 </option>
-                                <option value="0.015" {if $_c['tax_rate']=='0.015' }selected="selected" {/if}>
-                                    {Lang::T('1.5%')}
+                                <option value="1.5" {if $_c['tax_rate']=='1.5' }selected="selected" {/if}>
+                                    1.5%
                                 </option>
-                                <option value="0.02" {if $_c['tax_rate']=='0.02' }selected="selected" {/if}>
-                                    {Lang::T('2%')}
+                                <option value="2" {if $_c['tax_rate']=='2' }selected="selected" {/if}>
+                                    2%
                                 </option>
-                                <option value="0.05" {if $_c['tax_rate']=='0.05' }selected="selected" {/if}>
-                                    {Lang::T('5%')}
+                                <option value="5" {if $_c['tax_rate']=='5' }selected="selected" {/if}>
+                                    5%
                                 </option>
-                                <option value="0.1" {if $_c['tax_rate']=='0.1' }selected="selected" {/if}>
-                                    {Lang::T('10%')}
+                                <option value="10" {if $_c['tax_rate']=='10' }selected="selected" {/if}>
+                                    10%
                                 </option>
                                 <!-- Custom tax rate option -->
                                 <option value="custom" {if $_c['tax_rate']=='custom' }selected="selected" {/if}>
@@ -653,7 +701,7 @@
                         </div>
                         <p class="help-block col-md-4">{Lang::T('Enter the custom tax rate (e.g., 3.75 for 3.75%)')}</p>
                     </div>
-                </div> *}
+                </div>
 
                 {* <div class="panel-heading" id="envato">
                     <div class="btn-group pull-right">

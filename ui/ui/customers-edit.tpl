@@ -3,7 +3,7 @@
 <form class="form-horizontal" method="post" role="form" action="{$_url}customers/edit-post">
     <div class="row">
         <div class="col-md-6">
-            <div class="panel panel-primary panel-hovered panel-stacked mb30">
+            <div class="panel panel-{if $d['status']=='Active'}primary{else}danger{/if} panel-hovered panel-stacked mb30">
                 <div class="panel-heading">{Lang::T('Edit Contact')}</div>
                 <div class="panel-body">
                     <input type="hidden" name="id" value="{$d['id']}">
@@ -20,7 +20,7 @@
                                 {/if}
                                 <input type="text" class="form-control" name="username" value="{$d['username']}"
                                     required
-                                placeholder="{if $_c['country_code_phone']!= ''}{$_c['country_code_phone']} {Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}">
+                                    placeholder="{if $_c['country_code_phone']!= ''}{$_c['country_code_phone']} {Lang::T('Phone Number')}{else}{Lang::T('Username')}{/if}">
                             </div>
                         </div>
                     </div>
@@ -108,6 +108,22 @@
                             <div id="map" style="width: '100%'; height: 200px; min-height: 150px;"></div>
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">{Lang::T('Status')}</label>
+                        <div class="col-md-9">
+                            <select class="form-control" id="status" name="status">
+                                {foreach $statuses as $status}
+                                <option value="{$status}" {if $d['status'] eq $status }selected{/if}>{Lang::T($status)}
+                                </option>
+                                {/foreach}
+                            </select>
+                            <span class="help-block">
+                                {Lang::T('Banned')}: {Lang::T('Customer cannot login again')}.<br>
+                                {Lang::T('Disabled')}: {Lang::T('Customer can login but cannot buy internet plan, Admin cannot recharge customer')}.<br>
+                                {Lang::T('Don\'t forget to deactivate all active plan too')}.
+                            </span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -141,6 +157,51 @@
                 <div class="panel-footer">
                     <button class="btn btn-success btn-block" type="button"
                         id="add-custom-field">{Lang::T('Add')}</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="box box-primary box-solid collapsed-box">
+                <div class="box-header with-border">
+                    <h3 class="box-title">{Lang::T('Additional Information')}</h3>
+                    <div class="box-tools pull-right">
+                        <button type="button" class="btn btn-box-tool" data-widget="collapse"><i class="fa fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="box-body" style="display: none;">
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">{Lang::T('City')}</label>
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" id="city" name="city"
+                                value="{$d['city']}">
+                            <small class="form-text text-muted">{Lang::T('City of Resident')}</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">{Lang::T('District')}</label>
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" id="district" name="district"
+                                value="{$d['district']}">
+                            <small class="form-text text-muted">{Lang::T('District')}</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">{Lang::T('State')}</label>
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" id="state" name="state"
+                                value="{$d['state']}">
+                            <small class="form-text text-muted">{Lang::T('State of Resident')}</small>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="col-md-3 control-label">{Lang::T('Zip')}</label>
+                        <div class="col-md-9">
+                            <input type="text" class="form-control" id="zip" name="zip"
+                                value="{$d['zip']}">
+                            <small class="form-text text-muted">{Lang::T('Zip Code')}</small>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -219,13 +280,15 @@
         });
         }
         window.onload = function() {
-            {/literal}{if $d['coordinates']}
-                setupMap({$d['coordinates']});
-            {else}
-                getLocation();
-            {/if}{literal}
-        }
-    </script>
-{/literal}
+            {/literal}
+                {if $d['coordinates']}
+                    setupMap({$d['coordinates']});
+                {else}
+                    getLocation();
+                    {/if}
+                        {literal}
+                        }
+                    </script>
+                {/literal}
 
-{include file="sections/footer.tpl"}
+                {include file="sections/footer.tpl"}

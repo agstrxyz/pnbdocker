@@ -54,7 +54,7 @@ function online_users()
         exec("echo 'User-Name=$d'|radclient $dd:$coaport disconnect '$sharedsecret'", $output, $retcode);
     } else {
         // Linux OS
-        exec("echo 'User-Name=$d,Framed-IP-Address=$dddd'|radclient $ds:$coaport disconnect '$sharedsecret'", $output, $retcode);
+        exec("echo 'User-Name=$d,Framed-IP-Address=$dddd'|radclient $dd:$coaport disconnect '$sharedsecret'", $output, $retcode);
     }
     $ui->assign('output', $output);
     $ui->assign('returnCode', $retcode);
@@ -83,7 +83,7 @@ function online_users()
 
 
 // Function to format bytes into KB, MB, GB or TB
-function radon_formatBytes($bytes, $precision = 2)
+function useron_formatBytes($bytes, $precision = 2)
 {
     $units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
     $bytes = max($bytes, 0);
@@ -94,7 +94,7 @@ function radon_formatBytes($bytes, $precision = 2)
 }
 
 // Convert seconds into months, days, hours, minutes, and seconds.
-function radon_secondsToTimeFull($ss)
+function useron_secondsToTimeFull($ss)
 {
     $s = $ss%60;
     $m = floor(($ss%3600)/60);
@@ -105,7 +105,7 @@ function radon_secondsToTimeFull($ss)
     return "$M months, $d days, $h hours, $m minutes, $s seconds";
 }
 
-function radon_secondsToTime($inputSeconds)
+function useron_secondsToTime($inputSeconds)
 {
     $secondsInAMinute = 60;
     $secondsInAnHour = 60 * $secondsInAMinute;

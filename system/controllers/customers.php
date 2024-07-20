@@ -96,7 +96,7 @@ switch ($action) {
             ->select('routers')
             ->select('status')
             ->select('method', 'Payment')
-            ->join('tbl_user_recharges', array('tbl_customers.id', '=', 'tbl_user_recharges.customer_id'))
+            ->left_outer_join('tbl_user_recharges', array('tbl_customers.id', '=', 'tbl_user_recharges.customer_id'))
             ->order_by_asc('tbl_customers.id')
             ->find_array();
 
@@ -184,13 +184,18 @@ switch ($action) {
                 $zero = 1;
                 $gateway = 'Recharge Zero';
             }
+            $usings = explode(',', $config['payment_usings']);
+            $usings = array_filter(array_unique($usings));
+            if (count($usings) == 0) {
+                $usings[] = Lang::T('Cash');
+            }
+            $ui->assign('usings', $usings);
             $ui->assign('bills', $bills);
             $ui->assign('add_cost', $add_cost);
             $ui->assign('cust', $cust);
             $ui->assign('gateway', $gateway);
             $ui->assign('channel', $channel);
             $ui->assign('server', $b['routers']);
-            $ui->assign('using', 'cash');
             $ui->assign('plan', $plan);
             $ui->display('recharge-confirm.tpl');
         } else {
@@ -207,17 +212,15 @@ switch ($action) {
         if ($b) {
             $p = ORM::for_table('tbl_plans')->where('id', $b['plan_id'])->find_one();
             if ($p) {
-                if ($p['is_radius']) {
-                    Radius::customerDeactivate($b['username']);
-                } else {
-                    $mikrotik = Mikrotik::info($b['routers']);
-                    $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                    if ($b['type'] == 'Hotspot') {
-                        Mikrotik::removeHotspotUser($client, $b['username']);
-                        Mikrotik::removeHotspotActiveUser($client, $b['username']);
-                    } else if ($b['type'] == 'PPPOE') {
-                        Mikrotik::removePpoeUser($client, $b['username']);
-                        Mikrotik::removePpoeActive($client, $b['username']);
+                $p = ORM::for_table('tbl_plans')->where('id', $b['plan_id'])->find_one();
+                $c = User::_info($id_customer);
+                $dvc = Package::getDevice($p);
+                if ($_app_stage != 'demo') {
+                    if (file_exists($dvc)) {
+                        require_once $dvc;
+                        (new $p['device'])->remove_customer($c, $p);
+                    } else {
+                        new Exception(Lang::T("Devices Not Found"));
                     }
                 }
                 $b->status = 'off';
@@ -238,18 +241,16 @@ switch ($action) {
             $routers = [];
             foreach ($bs as $b) {
                 $c = ORM::for_table('tbl_customers')->find_one($id_customer);
-                $p = ORM::for_table('tbl_plans')->where('id', $b['plan_id'])->where('enabled', '1')->find_one();
+                $p = ORM::for_table('tbl_plans')->where('id', $b['plan_id'])->find_one();
                 if ($p) {
                     $routers[] = $b['routers'];
-                    if ($p['is_radius']) {
-                        Radius::customerAddPlan($c, $p, $p['expiration'] . ' ' . $p['time']);
-                    } else {
-                        $mikrotik = Mikrotik::info($b['routers']);
-                        $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                        if ($b['type'] == 'Hotspot') {
-                            Mikrotik::addHotspotUser($client, $p, $c);
-                        } else if ($b['type'] == 'PPPOE') {
-                            Mikrotik::addPpoeUser($client, $p, $c);
+                    $dvc = Package::getDevice($p);
+                    if ($_app_stage != 'demo') {
+                        if (file_exists($dvc)) {
+                            require_once $dvc;
+                            (new $p['device'])->add_customer($c, $p);
+                        } else {
+                            new Exception(Lang::T("Devices Not Found"));
                         }
                     }
                 }
@@ -310,6 +311,7 @@ switch ($action) {
             ->find_many();
         if ($d) {
             $ui->assign('d', $d);
+            $ui->assign('statuses', ORM::for_table('tbl_customers')->getEnum("status"));
             $ui->assign('customFields', $customFields);
             $ui->assign('xheader', $leafletpickerHeader);
             $ui->display('customers-edit.tpl');
@@ -324,59 +326,44 @@ switch ($action) {
         }
         $id = $routes['2'];
         run_hook('delete_customer'); #HOOK
-        $d = ORM::for_table('tbl_customers')->find_one($id);
-        if ($d) {
+        $c = ORM::for_table('tbl_customers')->find_one($id);
+        if ($c) {
             // Delete the associated Customers Attributes records from tbl_customer_custom_fields table
             ORM::for_table('tbl_customers_fields')->where('customer_id', $id)->delete_many();
-            $c = ORM::for_table('tbl_user_recharges')->where('username', $d['username'])->find_one();
-            if ($c) {
-                $p = ORM::for_table('tbl_plans')->find_one($c['plan_id']);
-                if ($p['is_radius']) {
-                    Radius::customerDelete($d['username']);
-                } else {
-                    $mikrotik = Mikrotik::info($c['routers']);
-                    if ($c['type'] == 'Hotspot') {
-                        $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                        Mikrotik::removeHotspotUser($client, $d['username']);
-                        Mikrotik::removeHotspotActiveUser($client, $d['username']);
-                    } else {
-                        $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                        Mikrotik::removePpoeUser($client, $d['username']);
-                        Mikrotik::removePpoeActive($client, $d['username']);
-                    }
-                    try {
-                        $d->delete();
-                    } catch (Exception $e) {
-                    } catch (Throwable $e) {
-                    }
-                    try {
-                        $c->delete();
-                    } catch (Exception $e) {
+            //Delete active package
+            $turs = ORM::for_table('tbl_user_recharges')->where('username', $c['username'])->find_many();
+            foreach ($turs as $tur) {
+                $p = ORM::for_table('tbl_plans')->find_one($tur['plan_id']);
+                if ($p) {
+                    $dvc = Package::getDevice($p);
+                    if ($_app_stage != 'demo') {
+                        if (file_exists($dvc)) {
+                            require_once $dvc;
+                            $p['plan_expired'] = 0;
+                            (new $p['device'])->remove_customer($c, $p);
+                        } else {
+                            new Exception(Lang::T("Devices Not Found"));
+                        }
                     }
                 }
-            } else {
                 try {
-                    $d->delete();
+                    $tur->delete();
                 } catch (Exception $e) {
-                } catch (Throwable $e) {
-                }
-                try {
-                    if ($c)
-                        $c->delete();
-                } catch (Exception $e) {
-                } catch (Throwable $e) {
                 }
             }
-
+            try {
+                $c->delete();
+            } catch (Exception $e) {
+            }
             r2(U . 'customers/list', 's', Lang::T('User deleted Successfully'));
         }
         break;
 
     case 'add-post':
-        $username = _post('username');
+        $username = alphanumeric(_post('username'), "+_.@-");
         $fullname = _post('fullname');
-        $password = _post('password');
-        $pppoe_password = _post('pppoe_password');
+        $password = trim(_post('password'));
+        $pppoe_password = trim(_post('pppoe_password'));
         $email = _post('email');
         $address = _post('address');
         $phonenumber = _post('phonenumber');
@@ -386,14 +373,19 @@ switch ($action) {
         //post Customers Attributes
         $custom_field_names = (array) $_POST['custom_field_name'];
         $custom_field_values = (array) $_POST['custom_field_value'];
+        //additional information
+        $city = _post('city');
+        $district = _post('district');
+        $state = _post('state');
+        $zip = _post('zip');
 
         run_hook('add_customer'); #HOOK
         $msg = '';
-        if (Validator::Length($username, 35, 2) == false) {
-            $msg .= 'Username should be between 3 to 55 characters' . '<br>';
+        if (Validator::Length($username, 55, 2) == false) {
+            $msg .= 'Username should be between 3 to 54 characters' . '<br>';
         }
-        if (Validator::Length($fullname, 36, 2) == false) {
-            $msg .= 'Full Name should be between 3 to 25 characters' . '<br>';
+        if (Validator::Length($fullname, 36, 1) == false) {
+            $msg .= 'Full Name should be between 2 to 25 characters' . '<br>';
         }
         if (!Validator::Length($password, 36, 2)) {
             $msg .= 'Password should be between 3 to 35 characters' . '<br>';
@@ -403,10 +395,9 @@ switch ($action) {
         if ($d) {
             $msg .= Lang::T('Account already axist') . '<br>';
         }
-
         if ($msg == '') {
             $d = ORM::for_table('tbl_customers')->create();
-            $d->username = Lang::phoneFormat($username);
+            $d->username = $username;
             $d->password = $password;
             $d->pppoe_password = $pppoe_password;
             $d->email = $email;
@@ -417,6 +408,10 @@ switch ($action) {
             $d->phonenumber = Lang::phoneFormat($phonenumber);
             $d->service_type = $service_type;
             $d->coordinates = $coordinates;
+            $d->city = $city;
+            $d->district = $district;
+            $d->state = $state;
+            $d->zip = $zip;
             $d->save();
 
             // Retrieve the customer ID of the newly created customer
@@ -444,51 +439,52 @@ switch ($action) {
         break;
 
     case 'edit-post':
-        $username = Lang::phoneFormat(_post('username'));
+        $username = alphanumeric(_post('username'), "+_.@-");
         $fullname = _post('fullname');
         $account_type = _post('account_type');
-        $password = _post('password');
-        $pppoe_password = _post('pppoe_password');
+        $password = trim(_post('password'));
+        $pppoe_password = trim(_post('pppoe_password'));
         $email = _post('email');
         $address = _post('address');
         $phonenumber = Lang::phoneFormat(_post('phonenumber'));
         $service_type = _post('service_type');
         $coordinates = _post('coordinates');
+        $status = _post('status');
+        //additional information
+        $city = _post('city');
+        $district = _post('district');
+        $state = _post('state');
+        $zip = _post('zip');
         run_hook('edit_customer'); #HOOK
         $msg = '';
-        if (Validator::Length($username, 35, 2) == false) {
-            $msg .= 'Username should be between 3 to 15 characters' . '<br>';
+        if (Validator::Length($username, 55, 2) == false) {
+            $msg .= 'Username should be between 3 to 54 characters' . '<br>';
         }
         if (Validator::Length($fullname, 36, 1) == false) {
             $msg .= 'Full Name should be between 2 to 25 characters' . '<br>';
         }
-        if ($password != '') {
-            if (!Validator::Length($password, 36, 2)) {
-                $msg .= 'Password should be between 3 to 15 characters' . '<br>';
-            }
-        }
 
         $id = _post('id');
-        $d = ORM::for_table('tbl_customers')->find_one($id);
+        $c = ORM::for_table('tbl_customers')->find_one($id);
+
+        if (!$c) {
+            $msg .= Lang::T('Data Not Found') . '<br>';
+        }
 
         //lets find user Customers Attributes using id
         $customFields = ORM::for_table('tbl_customers_fields')
             ->where('customer_id', $id)
             ->find_many();
 
-        if (!$d) {
-            $msg .= Lang::T('Data Not Found') . '<br>';
-        }
-
-        $oldusername = $d['username'];
-        $oldPppoePassword = $d['password'];
-        $oldPassPassword = $d['pppoe_password'];
+        $oldusername = $c['username'];
+        $oldPppoePassword = $c['password'];
+        $oldPassPassword = $c['pppoe_password'];
         $userDiff = false;
         $pppoeDiff = false;
         $passDiff = false;
         if ($oldusername != $username) {
-            $c = ORM::for_table('tbl_customers')->where('username', $username)->find_one();
-            if ($c) {
+            $cx = ORM::for_table('tbl_customers')->where('username', $username)->find_one();
+            if ($cx) {
                 $msg .= Lang::T('Account already exist') . '<br>';
             }
             $userDiff = true;
@@ -502,20 +498,25 @@ switch ($action) {
 
         if ($msg == '') {
             if ($userDiff) {
-                $d->username = $username;
+                $c->username = $username;
             }
             if ($password != '') {
-                $d->password = $password;
+                $c->password = $password;
             }
-            $d->pppoe_password = $pppoe_password;
-            $d->fullname = $fullname;
-            $d->email = $email;
-            $d->account_type = $account_type;
-            $d->address = $address;
-            $d->phonenumber = $phonenumber;
-            $d->service_type = $service_type;
-            $d->coordinates = $coordinates;
-            $d->save();
+            $c->pppoe_password = $pppoe_password;
+            $c->fullname = $fullname;
+            $c->email = $email;
+            $c->account_type = $account_type;
+            $c->address = $address;
+            $c->status = $status;
+            $c->phonenumber = $phonenumber;
+            $c->service_type = $service_type;
+            $c->coordinates = $coordinates;
+            $c->city = $city;
+            $c->district = $district;
+            $c->state = $state;
+            $c->zip = $zip;
+            $c->save();
 
 
             // Update Customers Attributes values in tbl_customers_fields table
@@ -564,30 +565,24 @@ switch ($action) {
             }
 
             if ($userDiff || $pppoeDiff || $passDiff) {
-                $c = ORM::for_table('tbl_user_recharges')->where('username', ($userDiff) ? $oldusername : $username)->find_one();
-                if ($c) {
-                    $c->username = $username;
-                    $c->save();
-                    $p = ORM::for_table('tbl_plans')->find_one($c['plan_id']);
-                    if ($p['is_radius']) {
-                        if ($userDiff) {
-                            Radius::customerChangeUsername($oldusername, $username);
-                        }
-                        Radius::customerAddPlan($d, $p, $p['expiration'] . ' ' . $p['time']);
-                    } else {
-                        $mikrotik = Mikrotik::info($c['routers']);
-                        if ($c['type'] == 'Hotspot') {
-                            $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                            Mikrotik::setHotspotUser($client, $c['username'], $password);
-                            Mikrotik::removeHotspotActiveUser($client, $d['username']);
-                        } else {
-                            $client = Mikrotik::getClient($mikrotik['ip_address'], $mikrotik['username'], $mikrotik['password']);
-                            if (!empty($d['pppoe_password'])) {
-                                Mikrotik::setPpoeUser($client, $c['username'], $d['pppoe_password']);
+                $turs = ORM::for_table('tbl_user_recharges')->where('customer_id', $c['id'])->findMany();
+                foreach ($turs as $tur) {
+                    $tur->username = $username;
+                    $tur->save();
+                    $p = ORM::for_table('tbl_plans')->find_one($tur['plan_id']);
+                    $dvc = Package::getDevice($p);
+                    if ($_app_stage != 'demo') {
+                        // if has active package
+                        if ($tur['status'] == 'on') {
+                            if (file_exists($dvc)) {
+                                require_once $dvc;
+                                if ($userDiff) {
+                                    (new $p['device'])->change_username($p, $oldusername, $username);
+                                }
+                                (new $p['device'])->add_customer($c, $p);
                             } else {
-                                Mikrotik::setPpoeUser($client, $c['username'], $password);
+                                new Exception(Lang::T("Devices Not Found"));
                             }
-                            Mikrotik::removePpoeActive($client, $d['username']);
                         }
                     }
                 }
@@ -600,11 +595,80 @@ switch ($action) {
 
     default:
         run_hook('list_customers'); #HOOK
+        $search = _post('search');
+        $order = _post('order', 'username');
+        $filter = _post('filter', 'Active');
+        $orderby = _post('orderby', 'asc');
+        $order_pos = [
+            'username' => 0,
+            'created_at' => 8,
+            'balance' => 3,
+            'status' => 7
+        ];
 
-        $query = ORM::for_table('tbl_customers')->order_by_asc('username');
+        if ($search != '') {
+            $query = ORM::for_table('tbl_customers')
+                ->whereRaw("username LIKE '%$search%' OR fullname LIKE '%$search%' OR address LIKE '%$search%' " .
+                    "OR phonenumber LIKE '%$search%' OR email LIKE '%$search%' AND status='$filter'");
+        } else {
+            $query = ORM::for_table('tbl_customers');
+            $query->where("status", $filter);
+        }
+        if ($orderby == 'asc') {
+            $query->order_by_asc($order);
+        } else {
+            $query->order_by_desc($order);
+        }
         $d = $query->findMany();
+        if (_post('export', '') == 'csv') {
+            $h = false;
+            set_time_limit(-1);
+            header('Pragma: public');
+            header('Expires: 0');
+            header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+            header("Content-type: text/csv");
+            header('Content-Disposition: attachment;filename="phpnuxbill_customers_' . $filter . '_' . date('Y-m-d_H_i') . '.csv"');
+            header('Content-Transfer-Encoding: binary');
+
+            $headers = [
+                'id',
+                'username',
+                'fullname',
+                'address',
+                'phonenumber',
+                'email',
+                'balance',
+                'service_type',
+            ];
+            $fp = fopen('php://output', 'wb');
+            if (!$h) {
+                fputcsv($fp, $headers, ";");
+                $h = true;
+            }
+            foreach ($d as $c) {
+                $row = [
+                    $c['id'],
+                    $c['username'],
+                    $c['fullname'],
+                    str_replace("\n", " ", $c['address']),
+                    $c['phonenumber'],
+                    $c['email'],
+                    $c['balance'],
+                    $c['service_type'],
+                ];
+                fputcsv($fp, $row, ";");
+            }
+            fclose($fp);
+            die();
+        }
         $ui->assign('xheader', '<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.3/css/jquery.dataTables.min.css">');
         $ui->assign('d', $d);
+        $ui->assign('statuses', ORM::for_table('tbl_customers')->getEnum("status"));
+        $ui->assign('filter', $filter);
+        $ui->assign('search', $search);
+        $ui->assign('order', $order);
+        $ui->assign('order_pos', $order_pos[$order]);
+        $ui->assign('orderby', $orderby);
         $ui->display('customers.tpl');
         break;
 }

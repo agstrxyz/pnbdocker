@@ -24,7 +24,7 @@ function systool()
         $stream = ssh2_exec($connection, $command);
         stream_set_blocking($stream, true);
 
-        r2(U . 'dashboard', 's', 'Restart Success!');
+        r2(U . 'plugin/systool', 's', 'Restart Success!');
         
     }
 

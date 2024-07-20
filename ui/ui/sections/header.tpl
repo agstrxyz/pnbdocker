@@ -86,6 +86,109 @@
                 transform: rotate(360deg);
             }
         }
+
+        /*
+         * maintenance top-bar
+         */
+
+        .notification-top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 40px;
+            line-height: 40px;
+            width: 100%;
+            background: #ec2106;
+            text-align: center;
+            color: #FFFFFF;
+            font-family: serif;
+            font-weight: bolder;
+            font-size: 14px;
+            z-index: 9999;
+            box-sizing: border-box;
+            padding: 0 10px;
+        }
+
+        .notification-top-bar p {
+            padding: 0;
+            margin: 0;
+        }
+
+        .notification-top-bar p a {
+            padding: 5px 10px;
+            border-radius: 3px;
+            background: #FFF;
+            color: #1ABC9C;
+            font-weight: bold;
+            text-decoration: none;
+            display: inline;
+            font-size: inherit;
+        }
+
+        @media (max-width: 600px) {
+            .notification-top-bar {
+                font-size: 12px;
+                height: auto;
+                line-height: normal;
+                padding: 10px;
+            }
+
+            .notification-top-bar p a {
+                padding: 5px 10px;
+                margin: 5px 0;
+                font-size: 10px;
+                display: inline-block;
+            }
+        }
+
+        .bs-callout {
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #eee;
+            border-left-width: 5px;
+            border-radius: 3px;
+        }
+
+        .bs-callout h4 {
+            margin-top: 0;
+            margin-bottom: 5px
+        }
+
+        .bs-callout p:last-child {
+            margin-bottom: 0
+        }
+
+        .bs-callout code {
+            border-radius: 3px
+        }
+
+        .bs-callout+.bs-callout {
+            margin-top: -5px
+        }
+
+        .bs-callout-danger {
+            border-left-color: #ce4844
+        }
+
+        .bs-callout-danger h4 {
+            color: #ce4844
+        }
+
+        .bs-callout-warning {
+            border-left-color: #aa6708
+        }
+
+        .bs-callout-warning h4 {
+            color: #aa6708
+        }
+
+        .bs-callout-info {
+            border-left-color: #1b809e
+        }
+
+        .bs-callout-info h4 {
+            color: #1b809e
+        }
     </style>
     {if isset($xheader)}
         {$xheader}
@@ -334,8 +437,12 @@
                                         href="{$_url}settings/app">{Lang::T('General Settings')}</a></li>
                                 <li {if $_routes[1] eq 'localisation' }class="active" {/if}><a
                                         href="{$_url}settings/localisation">{Lang::T('Localisation')}</a></li>
+                                <li {if $_routes[1] eq 'maintenance' }class="active" {/if}><a
+                                        href="{$_url}settings/maintenance">{Lang::T('Maintenance Mode')}</a></li>
                                 <li {if $_routes[1] eq 'notifications' }class="active" {/if}><a
                                         href="{$_url}settings/notifications">{Lang::T('User Notification')}</a></li>
+                                <li {if $_routes[1] eq 'devices' }class="active" {/if}><a
+                                        href="{$_url}settings/devices">{Lang::T('Devices')}</a></li>
                             {/if}
                             {if in_array($_admin['user_type'],['SuperAdmin','Admin','Agent'])}
                                 <li {if $_routes[1] eq 'users' }class="active" {/if}><a
@@ -354,10 +461,6 @@
                                     <a href="{$_url}pluginmanager"><i class="glyphicon glyphicon-tasks"></i>
                                         {Lang::T('Plugin Manager')} <small class="label pull-right">Free</small></a>
                                 </li>
-                                {* <li {if $_routes[0] eq 'codecanyon' }class="active" {/if}>
-                                <a href="{$_url}codecanyon"><i class="glyphicon glyphicon-shopping-cart"></i>
-                                    Codecanyon.net <small class="label pull-right">Paid</small></a>
-                            </li> *}
                             {/if}
                         </ul>
                     </li>
@@ -378,21 +481,40 @@
                                             href="{$_url}logs/radius">Radius</a>
                                     </li>
                                 {/if}
+                                {$_MENU_LOGS}
                             </ul>
-                            {$_MENU_LOGS}
                         </li>
                     {/if}
                     {$_MENU_AFTER_LOGS}
-                    <li {if $_system_menu eq 'community' }class="active" {/if}>
-                        <a href="{$_url}community">
-                            <i class="ion ion-chatboxes"></i>
-                            <span class="text">{Lang::T('Community')}</span>
-                        </a>
-                    </li>
+                    {if in_array($_admin['user_type'],['SuperAdmin','Admin'])}
+                        <li {if $_system_menu eq 'community' }class="active" {/if}>
+                        <a href="{if $_c['docs_clicked'] != 'yes'}{$_url}settings/docs{else}./docs/{/if}">
+                                <i class="ion ion-ios-bookmarks"></i>
+                                <span class="text">{Lang::T('Documentation')}</span>
+                                {if $_c['docs_clicked'] != 'yes'}
+                                    <span class="pull-right-container"><small class="label pull-right bg-green">New</small></span>
+                                {/if}
+                            </a>
+                        </li>
+                        <li {if $_system_menu eq 'community' }class="active" {/if}>
+                            <a href="{$_url}community">
+                                <i class="ion ion-chatboxes"></i>
+                                <span class="text">{Lang::T('Community')}</span>
+                            </a>
+                        </li>
+                    {/if}
                     {$_MENU_AFTER_COMMUNITY}
                 </ul>
             </section>
         </aside>
+
+        {if $_c['maintenance_mode'] == 1}
+            <div class="notification-top-bar">
+                <p>{Lang::T('The website is currently in maintenance mode, this means that some or all functionality may be
+                unavailable to regular users during this time.')}<small> &nbsp;&nbsp;<a
+                            href="{$_url}settings/maintenance">{Lang::T('Turn Off')}</a></small></p>
+            </div>
+        {/if}
 
         <div class="content-wrapper">
             <section class="content-header">
@@ -408,7 +530,6 @@
                         Swal.fire({
                             icon: '{if $notify_t == "s"}success{else}error{/if}',
                             title: '{$notify}',
-                            toast: true,
                             position: 'top-end',
                             showConfirmButton: false,
                             timer: 5000,

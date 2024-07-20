@@ -2,15 +2,17 @@
 
 <div class="row">
     <div class="col-sm-4 col-md-4">
-        <div class="box box-primary">
+        <div class="box box-{if $d['status']=='Active'}primary{else}danger{/if}">
             <div class="box-body box-profile">
                 <img class="profile-user-img img-responsive img-circle"
                     src="https://robohash.org/{$d['id']}?set=set3&size=100x100&bgset=bg1"
                     onerror="this.src='{$UPLOAD_PATH}/user.default.jpg'" alt="avatar">
-
                 <h3 class="profile-username text-center">{$d['fullname']}</h3>
-
                 <ul class="list-group list-group-unbordered">
+                    <li class="list-group-item">
+                        <b>{Lang::T('Status')}</b> <span
+                            class="pull-right {if $d['status'] !='Active'}bg-red{/if}">&nbsp;{Lang::T($d['status'])}&nbsp;</span>
+                    </li>
                     <li class="list-group-item">
                         <b>{Lang::T('Username')}</b> <span class="pull-right">{$d['username']}</span>
                     </li>
@@ -20,9 +22,19 @@
                     <li class="list-group-item">
                         <b>{Lang::T('Email')}</b> <span class="pull-right">{$d['email']}</span>
                     </li>
-                </ul>
-                <p class="text-muted">{Lang::nl2br($d['address'])}</p>
-                <ul class="list-group list-group-unbordered">
+                    <li class="list-group-item">{Lang::nl2br($d['address'])}</li>
+                    <li class="list-group-item">
+                        <b>{Lang::T('City')}</b> <span class="pull-right">{Lang::T($d['city'])}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <b>{Lang::T('District')}</b> <span class="pull-right">{Lang::T($d['district'])}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <b>{Lang::T('State')}</b> <span class="pull-right">{Lang::T($d['state'])}</span>
+                    </li>
+                    <li class="list-group-item">
+                        <b>{Lang::T('Zip')}</b> <span class="pull-right">{Lang::T($d['zip'])}</span>
+                    </li>
                     <li class="list-group-item">
                         <b>{Lang::T('Password')}</b> <input type="password" value="{$d['password']}"
                             style=" border: 0px; text-align: right;" class="pull-right"
@@ -233,23 +245,23 @@
 </div>
 
 {if $d['coordinates']}
-{literal}
-<script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
-<script>
-    function setupMap(lat, lon) {
-        var map = L.map('map').setView([lat, lon], 17);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png', {
-            attribution:
-                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-                subdomains: 'abcd',
-                maxZoom: 20
-        }).addTo(map);
-        var marker = L.marker([lat, lon]).addTo(map);
-    }
-    window.onload = function() {
-        {/literal}setupMap({$d['coordinates']});{literal}
-    }
-</script>
-{/literal}
+    {literal}
+        <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+        <script>
+            function setupMap(lat, lon) {
+                var map = L.map('map').setView([lat, lon], 17);
+                L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}.png', {
+                attribution:
+                    '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    subdomains: 'abcd',
+                    maxZoom: 20
+            }).addTo(map);
+            var marker = L.marker([lat, lon]).addTo(map);
+            }
+            window.onload = function() {
+                {/literal}setupMap({$d['coordinates']});{literal}
+            }
+        </script>
+    {/literal}
 {/if}
 {include file="sections/footer.tpl"}

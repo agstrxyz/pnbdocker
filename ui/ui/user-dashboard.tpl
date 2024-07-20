@@ -167,12 +167,25 @@
                                 <td class="small mb15">{$nux_mac}</td>
                             </tr>
                         {/if}
-                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $nux_router neq ''}
+                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $_bill['routers'] != 'radius' && $_c['hs_auth_method'] != 'hchap'}
                             <tr>
                                 <td class="small text-primary text-uppercase text-normal">{Lang::T('Login Status')}</td>
                                 <td class="small mb15" id="login_status_{$_bill['id']}">
                                     <img src="ui/ui/images/loading.gif">
                                 </td>
+                            </tr>
+                        {/if}
+                        {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $_c['hs_auth_method'] == 'hchap'}
+                            <tr>
+                                <td class="small text-primary text-uppercase text-normal">{Lang::T('Login Status')}</td>
+                                <td class="small mb15">
+                            {if $logged == '1'}
+                        <a href="http://{$hostname}/status" class="btn btn-success btn-xs btn-block">{Lang::T('You are Online, Check Status')}</a>
+                            {else}
+                        <a href="{$_url}home&mikrotik=login" 
+                            onclick="return confirm('{Lang::T('Connect to Internet')}')" class="btn btn-danger btn-xs btn-block">{Lang::T('Not Online, Login now?')}</a>
+                            {/if}
+                                 </td>
                             </tr>
                         {/if}
                         <tr>
@@ -210,7 +223,7 @@
         {/if}
         {if $_bills}
             {foreach $_bills as $_bill}
-                {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on'}
+                {if $_bill['type'] == 'Hotspot' && $_bill['status'] == 'on' && $_c['hs_auth_method'] != 'hchap'}
                     <script>
                         setTimeout(() => {
                             $.ajax({
@@ -225,7 +238,6 @@
                 {/if}
             {/foreach}
         {/if}
-        {$nux_router}
         {if $_c['enable_balance'] == 'yes' && $_c['allow_balance_transfer'] == 'yes'}
             <div class="box box-primary box-solid mb30">
                 <div class="box-header">
@@ -289,26 +301,28 @@
                 </div>
                 <div class="box-body">
                     <form method="post" role="form" class="form-horizontal" action="{$_url}voucher/activation-post">
-                        <div class="form-group">
-                            <label class="col-sm-4 control-label text-center">{Lang::T('Code Voucher')}</label>
-                            <div class="col-sm-7">
-                                <input type="text" id="code" name="code" class="form-control"
-                                    placeholder="{Lang::T('Enter voucher code here')}">
-                            </div>
-                        </div>
-                        <div class="form-group" align="center">
-                            <button class="btn btn-success" type="submit">{Lang::T('Recharge')}</button>
+                        <div class="input-group">
+                            <span class="input-group-btn">
+                                <a class="btn btn-default"
+                                    href="{APP_URL}/scan/?back={urlencode($_url)}{urlencode("home&code=")}"><i
+                                        class="glyphicon glyphicon-qrcode"></i></a>
+                            </span>
+                            <input type="text" id="code" name="code" class="form-control"
+                                placeholder="{Lang::T('Enter voucher code here')}" value="{$code}">
+                            <span class="input-group-btn">
+                                <button class="btn btn-primary" type="submit">{Lang::T('Recharge')}</button>
+                            </span>
                         </div>
                     </form>
                 </div>
                 <div class="box-body">
                     <div class="btn-group btn-group-justified" role="group">
-                        <a class="btn btn-warning" href="{$_url}voucher/activation">
+                        <a class="btn btn-default" href="{$_url}voucher/activation">
                             <i class="ion ion-ios-cart"></i>
                             {Lang::T('Order Voucher')}
                         </a>
                         {if $_c['payment_gateway'] != 'none' or $_c['payment_gateway'] == '' }
-                            <a href="{$_url}order/package" class="btn btn-primary">
+                            <a href="{$_url}order/package" class="btn btn-default">
                                 <i class="ion ion-ios-cart"></i>
                                 {Lang::T('Order Package')}
                             </a>
@@ -319,4 +333,17 @@
         {/if}
     </div>
 </div>
+{if isset($hostname) && $hchap == 'true' && $_c['hs_auth_method'] == 'hchap'}
+<script type="text/javascript" src="/ui/ui/scripts/md5.js"></script>
+<script type="text/javascript">
+     var hostname = "http://{$hostname}/login";
+     var user = "{$_user['username']}";
+     var pass = "{$_user['password']}";
+     var dst = "{$apkurl}";
+     var authdly = "2";
+     var key = hexMD5('{$key1}' + pass + '{$key2}');
+     var auth = hostname + '?username=' + user + '&dst=' + dst + '&password=' + key;
+     document.write('<meta http-equiv="refresh" target="_blank" content="'+authdly+'; url='+auth+'">');
+</script>
+{/if}
 {include file="sections/user-footer.tpl"}

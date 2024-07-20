@@ -12,6 +12,46 @@ $action = $routes['1'];
 $ui->assign('_admin', $admin);
 
 switch ($action) {
+    case 'docs':
+        $d = ORM::for_table('tbl_appconfig')->where('setting', 'docs_clicked')->find_one();
+        if ($d) {
+            $d->value = 'yes';
+            $d->save();
+        } else {
+            $d = ORM::for_table('tbl_appconfig')->create();
+            $d->setting = 'docs_clicked';
+            $d->value = 'yes';
+            $d->save();
+        }
+        r2('./docs');
+        break;
+    case 'devices':
+        $files = scandir($DEVICE_PATH);
+        $devices = [];
+        foreach ($files as $file) {
+            $ext = pathinfo($file, PATHINFO_EXTENSION);
+            if ($ext == 'php') {
+                $dev = pathinfo($file, PATHINFO_FILENAME);
+                require_once $DEVICE_PATH . DIRECTORY_SEPARATOR . $file;
+                $dvc = new $dev;
+                if(method_exists($dvc, 'description')){
+                    $arr = $dvc->description();
+                    $arr['file'] = $dev;
+                    $devices[] = $arr;
+                }else{
+                    $devices[] = [
+                        'title' => $dev,
+                        'description' => '',
+                        'author' => 'unknown',
+                        'url' => [],
+                        'file' => $dev
+                    ];
+                }
+            }
+        }
+        $ui->assign('devices', $devices);
+        $ui->display('app-devices.tpl');
+        break;
     case 'app':
         if (!in_array($admin['user_type'], ['SuperAdmin', 'Admin'])) {
             _alert(Lang::T('You do not have permission to access this page'), 'danger', "dashboard");
@@ -41,14 +81,6 @@ switch ($action) {
             $logo = $UPLOAD_URL_PATH . DIRECTORY_SEPARATOR . 'logo.default.png';
         }
         $ui->assign('logo', $logo);
-        if ($config['radius_enable'] && empty($config['radius_client'])) {
-            try {
-                $config['radius_client'] = Radius::getClient();
-                $ui->assign('_c', $_c);
-            } catch (Exception $e) {
-                //ignore
-            }
-        }
         $themes = [];
         $files = scandir('ui/themes/');
         foreach ($files as $file) {
@@ -92,9 +124,12 @@ switch ($action) {
             _alert(Lang::T('You do not have permission to access this page'), 'danger', "dashboard");
         }
         $company = _post('CompanyName');
+        $custom_tax_rate = filter_var(_post('custom_tax_rate'), FILTER_SANITIZE_SPECIAL_CHARS);
+        if (preg_match('/[^0-9.]/', $custom_tax_rate)) {
+            r2(U . 'settings/app', 'e', 'Special characters are not allowed in tax rate');
+            die();
+        }
         run_hook('save_settings'); #HOOK
-
-
         if (!empty($_FILES['logo']['name'])) {
             if (function_exists('imagecreatetruecolor')) {
                 if (file_exists($UPLOAD_PATH . DIRECTORY_SEPARATOR . 'logo.png')) unlink($UPLOAD_PATH . DIRECTORY_SEPARATOR . 'logo.png');
@@ -109,7 +144,8 @@ switch ($action) {
         } else {
             if ($radius_enable) {
                 try {
-                    Radius::getTableNas()->find_many();
+                    require_once $DEVICE_PATH . DIRECTORY_SEPARATOR . "Radius.php";
+                    (new Radius())->getTableNas()->find_many();
                 } catch (Exception $e) {
                     $ui->assign("error_title", "RADIUS Error");
                     $ui->assign("error_message", "Radius table not found.<br><br>" .
@@ -121,6 +157,9 @@ switch ($action) {
             }
             // Save all settings including tax system
             foreach ($_POST as $key => $value) {
+                $key = filter_var($key, FILTER_SANITIZE_SPECIAL_CHARS);
+                $value = filter_var($value, FILTER_SANITIZE_SPECIAL_CHARS);
+
                 $d = ORM::for_table('tbl_appconfig')->where('setting', $key)->find_one();
                 if ($d) {
                     $d->value = $value;
@@ -132,34 +171,6 @@ switch ($action) {
                     $d->save();
                 }
             }
-
-            // Handle tax system separately
-            $enable_tax = isset($_POST['enable_tax']) ? $_POST['enable_tax'] : 'no';
-            $tax_rate = isset($_POST['tax_rate']) ? $_POST['tax_rate'] : '0.01'; // Default tax rate 1%
-
-            // Save or update tax system settings
-            $d_tax_enable = ORM::for_table('tbl_appconfig')->where('setting', 'enable_tax')->find_one();
-            if ($d_tax_enable) {
-                $d_tax_enable->value = $enable_tax;
-                $d_tax_enable->save();
-            } else {
-                $d_tax_enable = ORM::for_table('tbl_appconfig')->create();
-                $d_tax_enable->setting = 'enable_tax';
-                $d_tax_enable->value = $enable_tax;
-                $d_tax_enable->save();
-            }
-
-            $d_tax_rate = ORM::for_table('tbl_appconfig')->where('setting', 'tax_rate')->find_one();
-            if ($d_tax_rate) {
-                $d_tax_rate->value = $tax_rate;
-                $d_tax_rate->save();
-            } else {
-                $d_tax_rate = ORM::for_table('tbl_appconfig')->create();
-                $d_tax_rate->setting = 'tax_rate';
-                $d_tax_rate->value = $tax_rate;
-                $d_tax_rate->save();
-            }
-
             //checkbox
             $checks = ['hide_mrc', 'hide_tms', 'hide_aui', 'hide_al', 'hide_uet', 'hide_vs', 'hide_pg'];
             foreach ($checks as $check) {
@@ -295,8 +306,8 @@ switch ($action) {
             $d->value = $lan;
             $d->save();
             unset($_SESSION['Lang']);
-            _log('[' . $admin['username'] . ']: ' . Lang::T('Settings Saved Successfully'), $admin['user_type'], $admin['id']);
-            r2(U . 'settings/localisation', 's', Lang::T('Settings Saved Successfully'));
+            _log('[' . $admin['username'] . ']: ' . 'Settings Saved Successfully', $admin['user_type'], $admin['id']);
+            r2(U . 'settings/localisation', 's', 'Settings Saved Successfully');
         }
         break;
 
@@ -732,21 +743,45 @@ switch ($action) {
             $suc = 0;
             $fal = 0;
             $json = json_decode(file_get_contents($_FILES['json']['tmp_name']), true);
+            try {
+                ORM::raw_execute("SET FOREIGN_KEY_CHECKS=0;");
+            } catch (Throwable $e) {
+            } catch (Exception $e) {
+            }
+            try {
+                ORM::raw_execute("SET GLOBAL FOREIGN_KEY_CHECKS=0;");
+            } catch (Throwable $e) {
+            } catch (Exception $e) {
+            }
             foreach ($json as $table => $records) {
                 ORM::raw_execute("TRUNCATE $table;");
                 foreach ($records as $rec) {
-                    $t = ORM::for_table($table)->create();
-                    foreach ($rec as $k => $v) {
-                        if ($k != 'id') {
+                    try {
+                        $t = ORM::for_table($table)->create();
+                        foreach ($rec as $k => $v) {
                             $t->set($k, $v);
                         }
-                    }
-                    if ($t->save()) {
-                        $suc++;
-                    } else {
+                        if ($t->save()) {
+                            $suc++;
+                        } else {
+                            $fal++;
+                        }
+                    } catch (Throwable $e) {
+                        $fal++;
+                    } catch (Exception $e) {
                         $fal++;
                     }
                 }
+            }
+            try {
+                ORM::raw_execute("SET FOREIGN_KEY_CHECKS=1;");
+            } catch (Throwable $e) {
+            } catch (Exception $e) {
+            }
+            try {
+                ORM::raw_execute("SET GLOBAL FOREIGN_KEY_CHECKS=1;");
+            } catch (Throwable $e) {
+            } catch (Exception $e) {
             }
             if (file_exists($_FILES['json']['tmp_name'])) unlink($_FILES['json']['tmp_name']);
             r2(U . "settings/dbstatus", 's', "Restored $suc success $fal failed");
@@ -770,6 +805,42 @@ switch ($action) {
     case 'lang-post':
         file_put_contents($lan_file, json_encode($_POST, JSON_PRETTY_PRINT));
         r2(U . 'settings/language', 's', Lang::T('Translation saved Successfully'));
+        break;
+
+    case 'maintenance':
+        if (!in_array($admin['user_type'], ['SuperAdmin', 'Admin'])) {
+            _alert(Lang::T('You do not have permission to access this page'), 'danger', "dashboard");
+            exit;
+        }
+        if (_post('save') == 'save') {
+            $status = isset($_POST['maintenance_mode']) ? 1 : 0; // Checkbox returns 1 if checked, otherwise 0
+            $force_logout = isset($_POST['maintenance_mode_logout']) ? 1 : 0; // Checkbox returns 1 if checked, otherwise 0
+            $date = isset($_POST['maintenance_date']) ? $_POST['maintenance_date'] : null;
+
+            $settings = [
+                'maintenance_mode' => $status,
+                'maintenance_mode_logout' => $force_logout,
+                'maintenance_date' => $date
+            ];
+
+            foreach ($settings as $key => $value) {
+                $d = ORM::for_table('tbl_appconfig')->where('setting', $key)->find_one();
+                if ($d) {
+                    $d->value = $value;
+                    $d->save();
+                } else {
+                    $d = ORM::for_table('tbl_appconfig')->create();
+                    $d->setting = $key;
+                    $d->value = $value;
+                    $d->save();
+                }
+            }
+
+            r2(U . "settings/maintenance", 's', Lang::T('Settings Saved Successfully'));
+        }
+        $ui->assign('_c', $config);
+        $ui->assign('_title', Lang::T('Maintenance Mode Settings'));
+        $ui->display('maintenance-mode.tpl');
         break;
 
     default:

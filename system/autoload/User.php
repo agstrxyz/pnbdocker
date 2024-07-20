@@ -74,7 +74,7 @@ class User
                 list($cost, $rem) = explode(":", $v);
                 // :0 installment is done
                 if ($rem != 0) {
-                    User::setAttribute($k, "$cost:".($rem - 1), $id);
+                    User::setAttribute($k, "$cost:" . ($rem - 1), $id);
                 }
             }
         }
@@ -159,11 +159,21 @@ class User
 
     public static function _info($id = 0)
     {
+        global $config;
+        if ($config['maintenance_mode'] == true) {
+            if ($config['maintenance_mode_logout'] == true) {
+                r2(U . 'logout', 'd', '');
+            } else {
+                displayMaintenanceMessage();
+            }
+        }
         if (!$id) {
             $id = User::getID();
         }
         $d = ORM::for_table('tbl_customers')->find_one($id);
-
+        if ($d['status'] == 'Banned') {
+            _alert(Lang::T('This account status') . ' : ' . Lang::T($d['status']), 'danger', "logout");
+        }
         if (empty($d['username'])) {
             r2(U . 'logout', 'd', '');
         }
@@ -177,23 +187,15 @@ class User
         }
         $d = ORM::for_table('tbl_user_recharges')
             ->select('tbl_user_recharges.id', 'id')
-            ->select('customer_id')
-            ->select('username')
-            ->select('plan_id')
-            ->select('namebp')
-            ->select('recharged_on')
-            ->select('recharged_time')
-            ->select('expiration')
-            ->select('time')
-            ->select('status')
-            ->select('method')
-            ->select('plan_type')
-            ->select('tbl_user_recharges.routers', 'routers')
-            ->select('tbl_user_recharges.type', 'type')
-            ->select('admin_id')
-            ->select('prepaid')
+            ->selects([
+                'customer_id', 'username', 'plan_id', 'namebp', 'recharged_on', 'recharged_time', 'expiration', 'time',
+                'status', 'method', 'plan_type',
+                ['tbl_user_recharges.routers', 'routers'],
+                ['tbl_user_recharges.type', 'type'],
+                'admin_id', 'prepaid'
+            ])
             ->where('customer_id', $id)
-            ->join('tbl_plans', array('tbl_plans.id', '=', 'tbl_user_recharges.plan_id'))
+            ->left_outer_join('tbl_plans', array('tbl_plans.id', '=', 'tbl_user_recharges.plan_id'))
             ->find_many();
         return $d;
     }

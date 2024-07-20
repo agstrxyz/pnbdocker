@@ -55,7 +55,7 @@
 <div id="rst" class="tabcontent">
 <form action="{$_url}plugin/systool" method="post">
 <input type="hidden" name="restart" value="true">
-<button type="submit" class="tablink" title="Reload FreeRadius Server"
+<button type="submit" class="tablink" title="Restart container"
 onclick="return confirm('Restart Server?')"><span
 class="glyphicon glyphicon-refresh" aria-hidden="true"></span>Restart Server</button>
 </form>

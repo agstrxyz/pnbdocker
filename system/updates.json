@@ -93,5 +93,37 @@
     ],
     "2024.4.5" : [
         "ALTER TABLE `tbl_payment_gateway` ADD `trx_invoice` VARCHAR(25) NOT NULL DEFAULT '' COMMENT 'from tbl_transactions' AFTER `paid_date`;"
+    ],
+    "2024.5.17" : [
+        "ALTER TABLE `tbl_customers` ADD `status` ENUM('Active','Banned','Disabled') NOT NULL DEFAULT 'Active' AFTER `auto_renewal`;"
+    ],
+    "2024.5.18" : [
+        "ALTER TABLE `tbl_customers` CHANGE `status` `status` ENUM('Active','Banned','Disabled','Inactive','Limited','Suspended') CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT 'Active';"
+    ],
+    "2024.5.20" : [
+        "ALTER TABLE `tbl_customers` ADD `city` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci AFTER `address`, ADD `district` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci AFTER `city`, ADD `state` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci AFTER `district`, ADD `zip` VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci AFTER `state`;"
+    ],
+    "2024.6.5" : [
+        "ALTER TABLE `tbl_plans` ADD `price_old` VARCHAR(40) NOT NULL DEFAULT '' AFTER `price`;",
+        "ALTER TABLE `tbl_plans` ADD `device` VARCHAR(32) NOT NULL DEFAULT '' AFTER `plan_type`;"
+    ],
+    "2024.6.10" : [
+        "ALTER TABLE `tbl_pool` ADD `local_ip` VARCHAR(40) NOT NULL DEFAULT '' AFTER `pool_name`;"
+    ],
+    "2024.6.11" : [
+        "ALTER TABLE `tbl_plans` ADD `plan_expired` INT NOT NULL DEFAULT '0' AFTER `pool`;",
+        "ALTER TABLE `tbl_plans` DROP `pool_expired`, DROP `list_expired`;"
+    ],
+    "2024.6.19" : [
+        "ALTER TABLE `tbl_plans` ADD `expired_date` TINYINT(1) NOT NULL DEFAULT '20' AFTER `plan_expired`;"
+    ],
+    "2024.6.21" : [
+        "ALTER TABLE `tbl_plans` ADD `on_login` TEXT NULL DEFAULT NULL AFTER `device`;",
+        "ALTER TABLE `tbl_plans` ADD `on_logout` TEXT NULL DEFAULT NULL AFTER `on_login`;"
+    ],
+    "2024.7.6" : [
+        "CREATE TABLE IF NOT EXISTS `rad_acct` ( `id` bigint NOT NULL, `acctsessionid` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '', `username` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '', `realm` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '', `nasid` varchar(32) COLLATE utf8mb4_general_ci NOT NULL DEFAULT '', `nasipaddress` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '', `nasportid` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL, `nasporttype` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL, `framedipaddress` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '',`acctstatustype` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL, `macaddr` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL, `dateAdded` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;",
+        "ALTER TABLE `rad_acct` ADD PRIMARY KEY (`id`), ADD KEY `username` (`username`), ADD KEY `framedipaddress` (`framedipaddress`), ADD KEY `acctsessionid` (`acctsessionid`), ADD KEY `nasipaddress` (`nasipaddress`);",
+        "ALTER TABLE `rad_acct` MODIFY `id` bigint NOT NULL AUTO_INCREMENT;"
     ]
 }

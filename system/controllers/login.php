@@ -5,8 +5,13 @@
  *  by https://t.me/ibnux
  **/
 
-if(User::getID()){
-    r2(U.'home');
+$maintenance_mode = $config['maintenance_mode'];
+if ($maintenance_mode == true) {
+    displayMaintenanceMessage();
+}
+
+if (User::getID()) {
+    r2(U . 'home');
 }
 
 if (isset($routes['1'])) {
@@ -24,13 +29,16 @@ switch ($do) {
             $d = ORM::for_table('tbl_customers')->where('username', $username)->find_one();
             if ($d) {
                 $d_pass = $d['password'];
+                if ($d['status'] == 'Banned') {
+                    _alert(Lang::T('This account status') . ' : ' . Lang::T($d['status']), 'danger', "");
+                }
                 if (Password::_uverify($password, $d_pass) == true) {
                     $_SESSION['uid'] = $d['id'];
                     User::setCookie($d['id']);
                     $d->last_login = date('Y-m-d H:i:s');
                     $d->save();
                     _log($username . ' ' . Lang::T('Login Successful'), 'User', $d['id']);
-                    _alert(Lang::T('Login Successful'),'success', "home");
+                    _alert(Lang::T('Login Successful'), 'success', "home");
                 } else {
                     _msglog('e', Lang::T('Invalid Username or Password'));
                     _log($username . ' ' . Lang::T('Failed Login'), 'User');
@@ -56,7 +64,7 @@ switch ($do) {
             $user = ORM::for_table('tbl_customers')->where('username', $username)->find_one();
             if (!$user) {
                 $d = ORM::for_table('tbl_customers')->create();
-                $d->username = alphanumeric($username, "+_.");
+                $d->username = alphanumeric($username, "+_.@-");
                 $d->password = $voucher;
                 $d->fullname = '';
                 $d->address = '';
@@ -68,7 +76,7 @@ switch ($do) {
                         r2(U . 'login', 'e', Lang::T('Voucher activation failed'));
                     }
                 } else {
-                    _alert(Lang::T('Login Successful'),'success', "dashboard");
+                    _alert(Lang::T('Login Successful'), 'success', "dashboard");
                     r2(U . 'login', 'e', Lang::T('Voucher activation failed') . '.');
                 }
             }
@@ -87,9 +95,21 @@ switch ($do) {
                     // add customer to mikrotik
                     if (!empty($_SESSION['nux-mac']) && !empty($_SESSION['nux-ip'])) {
                         try {
-                            $m = Mikrotik::info($v1['routers']);
-                            $c = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
-                            Mikrotik::logMeIn($c, $user['username'], $user['password'], $_SESSION['nux-ip'], $_SESSION['nux-mac']);
+                            $p = ORM::for_table('tbl_plans')->where('id', $v1['id_plan'])->find_one();
+                            $dvc = Package::getDevice($p);
+                            if ($_app_stage != 'demo') {
+                                if (file_exists($dvc)) {
+                                    require_once $dvc;
+                                    (new $p['device'])->connect_customer($user, $_SESSION['nux-ip'], $_SESSION['nux-mac'], $v1['routers']);
+                                    if (!empty($config['voucher_redirect'])) {
+                                        r2($config['voucher_redirect'], 's', Lang::T("Voucher activation success, now you can login"));
+                                    } else {
+                                        r2(U . "login", 's', Lang::T("Voucher activation success, now you can login"));
+                                    }
+                                } else {
+                                    new Exception(Lang::T("Devices Not Found"));
+                                }
+                            }
                             if (!empty($config['voucher_redirect'])) {
                                 r2($config['voucher_redirect'], 's', Lang::T("Voucher activation success, you are connected to internet"));
                             } else {
@@ -122,9 +142,21 @@ switch ($do) {
                     $user->save();
                     if (!empty($_SESSION['nux-mac']) && !empty($_SESSION['nux-ip'])) {
                         try {
-                            $m = Mikrotik::info($v1['routers']);
-                            $c = Mikrotik::getClient($m['ip_address'], $m['username'], $m['password']);
-                            Mikrotik::logMeIn($c, $user['username'], $user['password'], $_SESSION['nux-ip'], $_SESSION['nux-mac']);
+                            $p = ORM::for_table('tbl_plans')->where('id', $v1['id_plan'])->find_one();
+                            $dvc = Package::getDevice($p);
+                            if ($_app_stage != 'demo') {
+                                if (file_exists($dvc)) {
+                                    require_once $dvc;
+                                    (new $p['device'])->connect_customer($user, $_SESSION['nux-ip'], $_SESSION['nux-mac'], $v1['routers']);
+                                    if (!empty($config['voucher_redirect'])) {
+                                        r2($config['voucher_redirect'], 's', Lang::T("Voucher activation success, now you can login"));
+                                    } else {
+                                        r2(U . "login", 's', Lang::T("Voucher activation success, now you can login"));
+                                    }
+                                } else {
+                                    new Exception(Lang::T("Devices Not Found"));
+                                }
+                            }
                             if (!empty($config['voucher_redirect'])) {
                                 r2($config['voucher_redirect'], 's', Lang::T("Voucher activation success, you are connected to internet"));
                             } else {
@@ -156,6 +188,7 @@ switch ($do) {
     default:
         run_hook('customer_view_login'); #HOOK
         if ($config['disable_registration'] == 'yes') {
+            $ui->assign('code', alphanumeric(_get('code'), "-"));
             $ui->display('user-login-noreg.tpl');
         } else {
             $ui->display('user-login.tpl');
